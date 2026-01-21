@@ -40,8 +40,16 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateUserInfo = async (userData) => {
+    const response = await authAPI.updateUser(userData);
+    setUser(response.data);
+    localStorage.setItem('user', JSON.stringify(response.data));
+    localStorage.setItem('token', response.data.token);
+    return response;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUserInfo, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,13 +6,16 @@
 }
 
 .app-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #73c8a9 0%, #373b44 100%);
   color: white;
   padding: 20px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .app-header h1 {
@@ -24,6 +27,15 @@
   display: flex;
   align-items: center;
   gap: 20px;
+}
+
+.btn-user-info {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 600;
 }
 
 .btn-logout {
@@ -39,7 +51,7 @@
 
 .btn-logout:hover {
   background: white;
-  color: #667eea;
+  color: #373b44;
 }
 
 .app-content {
@@ -55,6 +67,9 @@
   border-right: 1px solid #e0e0e0;
   display: flex;
   flex-direction: column;
+  position: fixed;
+  top: 80px;
+  bottom: 0;
 }
 
 .sidebar-header {
@@ -71,7 +86,7 @@
 }
 
 .btn-add {
-  background: #667eea;
+  background: #73c8a9;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -83,7 +98,7 @@
 }
 
 .btn-add:hover {
-  background: #5568d3;
+  background: #62b798;
   transform: translateY(-1px);
 }
 
@@ -109,7 +124,7 @@
 
 .btn-primary {
   flex: 1;
-  background: #667eea;
+  background: #73c8a9;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -120,12 +135,12 @@
 }
 
 .btn-primary:hover {
-  background: #5568d3;
+  background: #62b798;
 }
 
 .btn-secondary {
   flex: 1;
-  background: #e0e0e0;
+  background: #373b44;
   color: #333;
   border: none;
   padding: 8px 16px;
@@ -135,7 +150,7 @@
 }
 
 .btn-secondary:hover {
-  background: #d0d0d0;
+  background: #484c55;
 }
 
 .lists-container {
@@ -159,7 +174,7 @@
 
 .list-item.active {
   background: #e8eaf6;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid #73c8a9;
 }
 
 .list-name {
@@ -189,6 +204,7 @@
 
 /* Items Section */
 .items-section {
+  margin-left: 300px;
   flex: 1;
   padding: 30px;
   overflow-y: auto;
@@ -234,8 +250,8 @@
 
 .btn-sort {
   background: white;
-  border: 2px solid #667eea;
-  color: #667eea;
+  border: 2px solid #373b44;
+  color: #373b44;
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
@@ -283,6 +299,7 @@
   justify-content: space-between;
   align-items: flex-start;
   transition: all 0.3s;
+  gap: 16px; /* Add gap between main content and actions */
 }
 
 .item-card:hover {
@@ -293,37 +310,59 @@
   border-left: 4px solid #f44336;
 }
 
+.item-card.completed {
+  border-left: 4px solid #4caf50;
+}
+
 .item-main {
   flex: 1;
+  min-width: 0; /* Important: allows flex item to shrink below content size */
 }
 
 .item-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+  align-items: flex-start; /* Changed from center to flex-start */
+  gap: 12px; /* Add gap between title and badge */
+  flex-wrap: wrap; /* Allow wrapping if needed */
 }
 
 .item-header h3 {
   margin: 0;
   color: #333;
   font-size: 1.1rem;
+  flex: 1;
+  min-width: 0; /* Important for text wrapping */
+  word-wrap: break-word; /* Break long words */
+  word-break: break-word; /* Break long words */
+  overflow-wrap: break-word; /* Break long words */
 }
 
 .status-badge {
   padding: 4px 12px;
-  margin-right: 12px;
   border-radius: 12px;
   color: white;
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
+  white-space: nowrap; /* Keep badge text on one line */
+  flex-shrink: 0; /* Prevent badge from shrinking */
+  /* Removed position: absolute and right properties */
+}
+
+.item-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0; /* Prevent action buttons from shrinking */
+  margin-left: auto; /* Push to the right */
 }
 
 .item-description {
   color: #666;
-  margin: 8px 0;
   line-height: 1.5;
+  word-wrap: break-word; /* Break long words */
+  word-break: break-word; /* Break long words */
+  overflow-wrap: break-word; /* Break long words */
 }
 
 .item-meta {
@@ -336,6 +375,11 @@
 
 .deadline.expired {
   color: #f44336;
+  font-weight: 600;
+}
+
+.deadline.completed {
+  color: #4caf50;
   font-weight: 600;
 }
 
@@ -356,8 +400,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #e8eaf6;
-  color: #667eea;
+  background: #adffe19f;
+  color: #373b44;
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
@@ -368,7 +412,7 @@
 .btn-remove-dep {
   background: none;
   border: none;
-  color: #667eea;
+  color: #373b44;
   cursor: pointer;
   font-size: 16px;
   padding: 0;
@@ -495,8 +539,105 @@
 }
 
 .dependency-option:hover {
-  border-color: #667eea;
+  border-color: #373b44;
   background: #f5f5f5;
+}
+
+/* SweetAlert2 Custom Styling */
+.custom-swal-popup {
+  border-radius: 12px;
+}
+
+.custom-swal-html {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.swal2-input,
+.swal2-textarea,
+.swal2-select {
+  width: 90% !important;
+  max-width: 90% !important;
+  margin: 0 0 10px 0 !important;
+  padding: 12px !important;
+  border: 1px solid #d0d0d0 !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  box-sizing: border-box !important;
+  font-family: inherit !important;
+}
+
+.swal2-popup {
+  padding: 20px !important;
+  width: 600px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+.swal2-textarea {
+  min-height: 80px !important;
+  resize: vertical !important;
+}
+
+.swal2-select {
+  height: 45px !important;
+  cursor: pointer !important;
+}
+
+.swal2-input:focus,
+.swal2-textarea:focus,
+.swal2-select:focus {
+  border-color: #4CAF50 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2) !important;
+}
+
+.swal2-html-container {
+  overflow: visible !important;
+}
+
+.swal2-title {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 10px !important;
+}
+
+.swal2-date-input {
+  padding: 10px !important;
+  height: auto !important;
+}
+
+.swal2-confirm {
+  background: #73c8a9 !important;
+  color: white !important;
+  border: none !important;
+  padding: 10px 20px !important;
+  border-radius: 6px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.3s !important;
+}
+
+.swal2-confirm:hover {
+  background: #62b798 !important;
+}
+
+.swal2-cancel {
+  background: color(srgb 0.388235 0.423529 0.455294) !important;
+  color: white !important;
+  border: none !important;
+  padding: 10px 20px !important;
+  border-radius: 6px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.3s !important;
+}
+
+.swal2-cancel:hover {
+  background: color(srgb 0.288235 0.323529 0.355294) !important;
 }
 
 @media (max-width: 768px) {
@@ -523,4 +664,116 @@
     justify-content: flex-end;
     margin-top: 12px;
   }
+
+  .status-badge {
+    position: static;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .status-badge {
+    visibility: hidden;
+  }
+}
+
+.last-day-badge {
+  background-color: red;
+  color: white;
+  padding-left: 8px;
+  padding-right: 8px; 
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 12px;
+}
+
+/* SweetAlert Dependency Selection Styling */
+.swal-dependency-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 5px;
+}
+
+.swal-dependency-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.swal-dependency-option:hover {
+  background: #e3f2fd;
+  border-color: #73c8a9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
+}
+
+.swal-dependency-option .dep-name {
+  font-weight: 500;
+  color: #373b44;
+  flex: 1;
+  text-align: left;
+}
+
+.swal-dependency-option .dep-status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.custom-swal-input {
+  width: 100% !important;
+  padding: 12px !important;
+  border: 1px solid #d0d0d0 !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+}
+
+/* Delete Account Button in User Info Popup */
+.custom-swal-footer {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 15px !important;
+  margin-top: 10px !important;
+}
+
+.swal-delete-account-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.swal-delete-account-btn:hover {
+  background: linear-gradient(135deg, #ff5252 0%, #b71c1c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
+}
+
+.swal-delete-account-btn span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }

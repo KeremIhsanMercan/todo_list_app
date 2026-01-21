@@ -61,13 +61,6 @@ public class TodoItemController {
                     .collect(Collectors.toList());
         }
         
-        // Filter by expired
-        if (expired != null) {
-            items = items.stream()
-                    .filter(item -> expired.equals(item.isExpired()))
-                    .collect(Collectors.toList());
-        }
-        
         // Filter by name
         if (name != null && !name.isEmpty()) {
             items = items.stream()
@@ -142,7 +135,7 @@ public class TodoItemController {
                     // Rule 1: Cannot mark as COMPLETED if this item's dependencies are not complete
                     if ("COMPLETED".equals(itemDetails.getStatus()) && !item.canBeCompleted()) {
                         return ResponseEntity.badRequest()
-                                .body(new MessageResponse("Cannot mark as COMPLETED! Dependencies are not complete"));
+                                .body(new MessageResponse("Cannot mark as COMPLETED! Dependencies are not complete."));
                     }
                     
                     // Rule 2: Cannot change from COMPLETED to something else if items depending on this are COMPLETED
@@ -159,7 +152,7 @@ public class TodoItemController {
                         
                         if (hasCompletedDependents) {
                             return ResponseEntity.badRequest()
-                                    .body(new MessageResponse("Cannot change status! Items depending on this are COMPLETED"));
+                                    .body(new MessageResponse("Cannot change status! There are items depending on this that are COMPLETED."));
                         }
                     }
                     
@@ -192,7 +185,7 @@ public class TodoItemController {
                 .map(item -> {
                     if (!item.canBeCompleted()) {
                         return ResponseEntity.badRequest()
-                                .body(new MessageResponse("Cannot complete: Dependencies not satisfied"));
+                                .body(new MessageResponse("Cannot complete: Dependencies not satisfied."));
                     }
                     
                     item.setStatus("COMPLETED");
@@ -212,29 +205,29 @@ public class TodoItemController {
         Long userId = getUserIdFromAuthentication(authentication);
         
         todoListRepository.findByIdAndUserId(listId, userId)
-                .orElseThrow(() -> new RuntimeException("Todo list not found"));
+                .orElseThrow(() -> new RuntimeException("Todo list not found."));
         
         TodoItem item = todoItemRepository.findByIdAndTodoListId(itemId, listId)
-                .orElseThrow(() -> new RuntimeException("Item not found"));
+                .orElseThrow(() -> new RuntimeException("Item not found."));
         
         TodoItem dependency = todoItemRepository.findByIdAndTodoListId(dependencyId, listId)
-                .orElseThrow(() -> new RuntimeException("Dependency item not found"));
+                .orElseThrow(() -> new RuntimeException("Dependency item not found."));
         
         if (itemId.equals(dependencyId)) {
             return ResponseEntity.badRequest()
-                    .body(new MessageResponse("Item cannot depend on itself"));
+                    .body(new MessageResponse("Item cannot depend on itself."));
         }
         
         // Check for circular dependency
         if (wouldCreateCircularDependency(item, dependency)) {
             return ResponseEntity.badRequest()
-                    .body(new MessageResponse("This would create a circular dependency"));
+                    .body(new MessageResponse("This would create a circular dependency."));
         }
         
         item.getDependencies().add(dependency);
         todoItemRepository.save(item);
         
-        return ResponseEntity.ok(new MessageResponse("Dependency added successfully"));
+        return ResponseEntity.ok(new MessageResponse("Dependency added successfully."));
     }
     
     // Remove dependency
@@ -246,18 +239,18 @@ public class TodoItemController {
         Long userId = getUserIdFromAuthentication(authentication);
         
         todoListRepository.findByIdAndUserId(listId, userId)
-                .orElseThrow(() -> new RuntimeException("Todo list not found"));
+                .orElseThrow(() -> new RuntimeException("Todo list not found."));
         
         TodoItem item = todoItemRepository.findByIdAndTodoListId(itemId, listId)
-                .orElseThrow(() -> new RuntimeException("Item not found"));
+                .orElseThrow(() -> new RuntimeException("Item not found."));
         
         TodoItem dependency = todoItemRepository.findByIdAndTodoListId(dependencyId, listId)
-                .orElseThrow(() -> new RuntimeException("Dependency item not found"));
+                .orElseThrow(() -> new RuntimeException("Dependency item not found."));
         
         item.getDependencies().remove(dependency);
         todoItemRepository.save(item);
         
-        return ResponseEntity.ok(new MessageResponse("Dependency removed successfully"));
+        return ResponseEntity.ok(new MessageResponse("Dependency removed successfully."));
     }
     
     // Delete todo item
@@ -268,7 +261,7 @@ public class TodoItemController {
         Long userId = getUserIdFromAuthentication(authentication);
         
         todoListRepository.findByIdAndUserId(listId, userId)
-                .orElseThrow(() -> new RuntimeException("Todo list not found"));
+                .orElseThrow(() -> new RuntimeException("Todo list not found."));
         
 
         List<TodoItem> itemsDependingOnThis = todoItemRepository.findByTodoListId(listId).stream()
@@ -278,13 +271,13 @@ public class TodoItemController {
                 
         if (!itemsDependingOnThis.isEmpty()) {
             return ResponseEntity.badRequest()
-                    .body(new MessageResponse("Cannot delete: Other items depend on this item"));
+                    .body(new MessageResponse("Cannot delete: Other items depend on this item. Remove dependencies first."));
         }
 
         return todoItemRepository.findByIdAndTodoListId(itemId, listId)
                 .map(item -> {
                     todoItemRepository.delete(item);
-                    return ResponseEntity.ok(new MessageResponse("Todo item deleted successfully"));
+                    return ResponseEntity.ok(new MessageResponse("Todo item deleted successfully."));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

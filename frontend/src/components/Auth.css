@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #73c8a9 0%, #373b44 100%);
   padding: 20px;
 }
 
@@ -41,13 +41,13 @@
 
 .auth-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #373b44;
 }
 
 .auth-button {
   width: 100%;
   padding: 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #73c8a9 0%, #373b44 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -84,7 +84,7 @@
 }
 
 .auth-link a {
-  color: #667eea;
+  color: #373b44;
   text-decoration: none;
   font-weight: 600;
 }

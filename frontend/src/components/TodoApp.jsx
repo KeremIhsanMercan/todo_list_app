@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useAuth } from '../AuthContext';
-import { todoListAPI, todoItemAPI } from '../api';
+import { todoListAPI, todoItemAPI, authAPI } from '../api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faCheck, faLink, faTrash, faCross, faX, faCalendar } from '@fortawesome/free-solid-svg-icons';
+import Swal from 'sweetalert2'
 import './TodoApp.css';
+import { text } from '@fortawesome/fontawesome-svg-core';
 
 function TodoApp() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUserInfo } = useAuth();
   const [todoLists, setTodoLists] = useState([]);
   const [selectedList, setSelectedList] = useState(null);
   const [todoItems, setTodoItems] = useState([]);
@@ -16,6 +18,122 @@ function TodoApp() {
   const [showListForm, setShowListForm] = useState(false);
   const [listName, setListName] = useState('');
   const [editingListId, setEditingListId] = useState(null);
+
+  // User info pop up state
+  const [showUserInfo, setShowUserInfo] = useState(false);
+
+  useEffect(() => {
+    if (showUserInfo) {
+      Swal.fire({
+        title: 'Your Info',
+        html: `
+          <input id="swal-input-username" class="swal2-input" placeholder="Username" value="${user?.username}">
+          <input id="swal-input-email" class="swal2-input" placeholder="Email" value="${user?.email}">
+          <input id="swal-input-password" type="password" class="swal2-input" placeholder="Enter password to confirm changes">
+        `,
+        footer: `
+          <button id="delete-account-btn" class="swal-delete-account-btn">
+            <span>&#9888; Delete Account</span>
+          </button>
+        `,
+        customClass: {
+          popup: 'custom-swal-popup',
+          htmlContainer: 'custom-swal-html',
+          footer: 'custom-swal-footer'
+        },
+        focusConfirm: false,
+        showConfirmButton: true,
+        confirmButtonText: 'Update',
+        showCancelButton: true,
+        cancelButtonText: 'Close',
+        didOpen: () => {
+          const deleteBtn = document.getElementById('delete-account-btn');
+          deleteBtn.addEventListener('click', async () => {
+            Swal.close();
+            const confirmDelete = await Swal.fire({
+              title: 'Delete Account?',
+              html: `
+                <p style="margin-bottom: 15px; color: #666;">This action cannot be undone. All your lists and items will be permanently deleted.</p>
+                <input id="delete-password" type="password" class="swal2-input" placeholder="Enter your password to confirm">
+              `,
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonText: 'Yes, delete my account',
+              confirmButtonColor: '#f44336',
+              cancelButtonText: 'Cancel',
+              preConfirm: () => {
+                const password = document.getElementById('delete-password').value;
+                if (!password) {
+                  Swal.showValidationMessage('Password is required');
+                  return false;
+                }
+                return password;
+              }
+            });
+            
+            if (confirmDelete.isConfirmed) {
+              try {
+                await authAPI.deleteAccount({ password: confirmDelete.value });
+                localStorage.clear();
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Account Deleted',
+                  text: 'Your account has been permanently deleted.',
+                  timer: 2000,
+                  showConfirmButton: false
+                }).then(() => {
+                  window.location.reload();
+                });
+              } catch (error) {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Delete Failed',
+                  text: error.response?.data?.message || 'Failed to delete account.'
+                });
+                setShowUserInfo(true);
+              }
+            } else {
+              setShowUserInfo(true);
+            }
+          });
+        },
+        preConfirm: () => {
+          const username = document.getElementById('swal-input-username').value;
+          const email = document.getElementById('swal-input-email').value;
+          const password = document.getElementById('swal-input-password').value;
+
+          if (!password) {
+            Swal.showValidationMessage('Password is required to update info');
+            return false;
+          }
+
+          return { username, email, password };
+        }
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            await updateUserInfo(result.value);
+            Swal.fire({
+              icon: 'success',
+              title: 'Info Updated',
+              text: 'Your user information has been updated successfully.',
+              timer: 1500,
+              showConfirmButton: false,
+              position: 'top'
+            });
+          } catch (error) {
+            Swal.fire({
+              icon: 'error',
+              title: 'Update Failed',
+              text: error.response?.data?.message || 'Failed to update user information.',
+            });
+          }
+        }
+        
+        setShowUserInfo(false);
+      });
+    }
+  }, [showUserInfo]);
   
   // Item form state
   const [showItemForm, setShowItemForm] = useState(false);
@@ -27,9 +145,7 @@ function TodoApp() {
   });
   const [editingItemId, setEditingItemId] = useState(null);
   
-  // Dependency management
-  const [showDependencyModal, setShowDependencyModal] = useState(false);
-  const [selectedItemForDep, setSelectedItemForDep] = useState(null);
+  // Dependency management - handled by SweetAlert
   
   // Filters and sorting
   const [filters, setFilters] = useState({
@@ -38,7 +154,7 @@ function TodoApp() {
     name: ''
   });
   const [sorting, setSorting] = useState({
-    sortBy: 'createdate',
+    sortBy: 'deadline',
     sortOrder: 'asc'
   });
 
@@ -52,18 +168,202 @@ function TodoApp() {
     }
   }, [selectedList, filters, sorting]);
 
+  useEffect(() => {
+    if (!showItemForm) {
+      setItemForm({ name: '', description: '', deadline: '', status: 'NOT_STARTED' });
+      setEditingItemId(null);
+    } else {
+      Swal.fire({
+        title: editingItemId ? 'Edit Todo Item' : 'Add New Todo Item',
+        html: `
+        <input id="swal-input-name" class="swal2-input" placeholder="Item name" value="${itemForm.name}" maxlength="50" required>
+        <textarea id="swal-input-description" class="swal2-textarea" placeholder="Description" maxlength="150" rows="3">${itemForm.description}</textarea>
+        <input id="swal-input-deadline" class="swal2-input swal2-date-input" type="date" value="${itemForm.deadline}" required>
+        <select id="swal-input-status" class="swal2-select">
+          <option value="NOT_STARTED" ${itemForm.status === 'NOT_STARTED' ? 'selected' : ''}>Not Started</option>
+          <option value="IN_PROGRESS" ${itemForm.status === 'IN_PROGRESS' ? 'selected' : ''}>In Progress</option>
+          <option value="COMPLETED" ${itemForm.status === 'COMPLETED' ? 'selected' : ''}>Completed</option>
+        </select>
+      `,
+        width: '450px',
+        padding: '20px',
+        showCancelButton: true,
+        cancelButtonText: 'Cancel',
+        confirmButtonText: 'Save',
+        focusConfirm: false,
+        customClass: {
+          popup: 'custom-swal-popup',
+          htmlContainer: 'custom-swal-html'
+        },
+        preConfirm: () => {
+          const name = document.getElementById('swal-input-name').value;
+          const description = document.getElementById('swal-input-description').value;
+          const deadline = document.getElementById('swal-input-deadline').value;
+          const status = document.getElementById('swal-input-status').value;
+
+          if (!name.trim()) {
+            Swal.showValidationMessage('Item name is required');
+            return false;
+          }
+
+          if (!deadline) {
+            Swal.showValidationMessage('Deadline is required');
+            return false;
+          }
+
+          if (name.length > 50) {
+            Swal.showValidationMessage('Name cannot exceed 50 characters');
+            return false;
+          }
+
+          if (description.length > 150) {
+            Swal.showValidationMessage('Description cannot exceed 150 characters');
+            return false;
+          }
+
+          return { name, description, deadline, status };
+        }
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          const formData = result.value;
+          
+          try {
+            const data = {
+              name: formData.name,
+              description: formData.description,
+              deadline: formData.deadline ? formData.deadline + 'T23:59:59' : null,
+              status: formData.status
+            };
+
+            if (editingItemId) {
+              await todoItemAPI.update(selectedList.id, editingItemId, data);
+            } else {
+              await todoItemAPI.create(selectedList.id, data);
+            }
+
+            setItemForm({ name: '', description: '', deadline: '', status: 'NOT_STARTED' });
+            setShowItemForm(false);
+            setEditingItemId(null);
+            fetchTodoItems();
+            
+            Swal.fire({
+              icon: 'success',
+              title: 'Success!',
+              text: editingItemId ? 'Item updated successfully' : 'Item created successfully',
+              timer: 600,
+              showConfirmButton: false,
+              position: 'top'
+            });
+          } catch (error) {
+            error.response?.data?.message
+              ? Swal.fire({
+                  icon: 'warning',
+                  title: 'Dependency Warning',
+                  text: error.response.data.message
+                })
+              : Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: 'Backend error occurred while creating/updating the item.'
+                });
+          }
+        } else {
+          setShowItemForm(false);
+          setEditingItemId(null);
+        }
+      });
+    }
+
+  }, [showItemForm]);
+
+  useEffect(() => {
+
+    if (showListForm) {
+      Swal.fire({
+        title: editingListId ? 'Edit Todo List' : 'Create New Todo List',
+        input: 'text',
+        customClass: {
+          popup: 'custom-swal-popup',
+          input: 'custom-swal-input'
+        },
+        inputPlaceholder: 'List name',
+        inputValue: listName,
+        inputAttributes: {
+          maxlength: 20,
+          autocapitalize: 'off',
+          autocorrect: 'off'
+        },
+        showCancelButton: true,
+        cancelButtonText: 'Cancel',
+        confirmButtonText: 'Save',
+        preConfirm: (name) => {
+          if (!name.trim()) {
+            Swal.showValidationMessage('List name is required');
+            return false;
+          }
+          if (name.length > 20) {
+            Swal.showValidationMessage('List name cannot exceed 20 characters');
+            return false;
+          }
+          return name;
+        }
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          const name = result.value;
+          try {
+            if (editingListId) {
+              await todoListAPI.update(editingListId, { name });
+            } else {
+              const response = await todoListAPI.create({ name });
+              setSelectedList(response.data);
+            }
+            setListName('');
+            setShowListForm(false);
+            setEditingListId(null);
+            fetchTodoLists();
+            Swal.fire({
+              icon: 'success',
+              title: 'Success!',
+              text: editingListId ? 'List updated successfully' : 'List created successfully',
+              timer: 600,
+              showConfirmButton: false,
+              position: 'top'
+            });
+          }
+          catch (error) {
+            error.response?.data?.message
+              ? Swal.fire({
+                  icon: 'warning',
+                  title: 'Warning',
+                  text: error.response.data.message
+                })
+              : Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: 'Backend error occurred while creating/updating the list.'
+                });
+          }
+        } else {
+          setShowListForm(false);
+          setEditingListId(null);
+        }
+      });
+    }
+
+  }, [showListForm]);
+
   const fetchTodoLists = async () => {
     try {
       setLoading(true);
       const response = await todoListAPI.getAll();
       setTodoLists(response.data);
-      if (response.data.length > 0 && !selectedList) {
-        setSelectedList(response.data[0]);
-      }
     } catch (error) {
-      console.error('Error fetching todo lists:', error);
       if (error.response?.status === 401) {
-        alert('Session expired. Please login again.');
+        Swal.fire({
+          icon: 'error',
+          title: 'Session Expired',
+          text: 'Please login again.'
+        });
         logout();
       }
     } finally {
@@ -87,95 +387,44 @@ function TodoApp() {
       });
       
       const response = await todoItemAPI.getAll(selectedList.id, params);
-      setTodoItems(response.data);
+      setTodoItems(response.data); // Backend handles expired status
     } catch (error) {
-      console.error('Error fetching todo items:', error);
-    }
-  };
-
-  // List operations
-  const handleCreateList = async (e) => {
-    e.preventDefault();
-    if (!listName.trim()) return;
-
-    try {
-      if (editingListId) {
-        await todoListAPI.update(editingListId, { name: listName });
-      } else {
-        const response = await todoListAPI.create({ name: listName });
-        setSelectedList(response.data);
-      }
-      setListName('');
-      setShowListForm(false);
-      setEditingListId(null);
-      fetchTodoLists();
-    } catch (error) {
-      alert('Failed to save list: ' + (error.response?.data?.message || error.message));
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Backend error occurred while fetching todo items.'
+      });
     }
   };
 
   const handleDeleteList = async (listId) => {
-    if (!window.confirm('Delete this list and all its items?')) return;
 
-    try {
-      await todoListAPI.delete(listId);
-      if (selectedList?.id === listId) {
-        setSelectedList(null);
-        setTodoItems([]);
+    Swal.fire({
+      title: 'Are you sure?',
+      text: 'This will delete the entire list and all its items.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await todoListAPI.delete(listId);
+          if (selectedList?.id === listId) {
+            setSelectedList(null);
+            setTodoItems([]);
+          }
+          setSelectedList(null);
+          fetchTodoLists();
+        } catch (error) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error.response?.data?.message || 'Backend error occurred while deleting the list.'
+          });
+        }
       }
-      fetchTodoLists();
-    } catch (error) {
-      alert('Failed to delete list');
-    }
-  };
-
-  // Item operations
-  const handleItemFormSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedList) return;
-
-    if (!itemForm.name.trim()) {
-      alert('Item name is required');
-      return;
-    }
-
-    if (itemForm.deadline) {
-      const deadlineDate = new Date(itemForm.deadline);
-      if (isNaN(deadlineDate.getTime())) {
-        alert('Invalid deadline date');
-        return;
-      }
-    }
-
-    if (itemForm.description.length > 100) {
-      alert('Description cannot exceed 100 characters');
-      return;
-    }
-
-    if (itemForm.name.length > 50) {
-      alert('Name cannot exceed 50 characters');
-      return;
-    }
-
-    try {
-      const data = {
-        ...itemForm,
-        deadline: itemForm.deadline ? itemForm.deadline + 'T23:59:59' : null
-      };
-
-      if (editingItemId) {
-        await todoItemAPI.update(selectedList.id, editingItemId, data);
-      } else {
-        await todoItemAPI.create(selectedList.id, data);
-      }
-
-      setItemForm({ name: '', description: '', deadline: '', status: 'NOT_STARTED' });
-      setShowItemForm(false);
-      setEditingItemId(null);
-      fetchTodoItems();
-    } catch (error) {
-      alert('Failed to save item: ' + (error.response?.data?.message || error.message));
-    }
+    });
   };
 
   const handleEditItem = (item) => {
@@ -195,36 +444,74 @@ function TodoApp() {
       await todoItemAPI.markComplete(selectedList.id, itemId);
       fetchTodoItems();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to mark as complete');
+      error.response?.data?.message
+        ? Swal.fire({
+            icon: 'warning',
+            title: 'Dependency Warning',
+            text: error.response.data.message
+          })
+        : Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Backend error occurred while marking the item as complete.'
+          });
     }
   };
 
   const handleDeleteItem = async (itemId) => {
-    if (!window.confirm('Delete this item?')) return;
-
-    
-    try {
-      await todoItemAPI.delete(selectedList.id, itemId);
-      fetchTodoItems();
-    } catch (error) {
-      if (error.response?.data?.message) {
-        alert(error.response.data.message);
-      } else {
-        alert('Failed to delete item');
+    Swal.fire({
+      title: 'Are you sure?',
+      text: 'This will delete the todo item.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await todoItemAPI.delete(selectedList.id, itemId);
+          fetchTodoItems();
+        } catch (error) {
+          error.response?.data?.message
+            ? Swal.fire({
+                icon: 'warning',
+                title: 'Warning',
+                text: error.response.data.message
+              })
+            : Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Backend error occurred while deleting the item.'
+              });
+        }
       }
-    }
+    });
   };
 
-  const handleAddDependency = async (dependencyId) => {
-    if (!selectedItemForDep) return;
-
+  const handleAddDependency = async (itemId, dependencyId) => {
     try {
-      await todoItemAPI.addDependency(selectedList.id, selectedItemForDep.id, dependencyId);
+      await todoItemAPI.addDependency(selectedList.id, itemId, dependencyId);
       fetchTodoItems();
-      setShowDependencyModal(false);
-      setSelectedItemForDep(null);
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Dependency added successfully',
+        timer: 600,
+        showConfirmButton: false,
+        position: 'top'
+      });
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to add dependency');
+      error.response?.data?.message
+        ? Swal.fire({
+            icon: 'warning',
+            title: 'Warning',
+            text: error.response.data.message
+          })
+        : Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to add dependency'
+          });
     }
   };
 
@@ -233,14 +520,72 @@ function TodoApp() {
       await todoItemAPI.removeDependency(selectedList.id, itemId, dependencyId);
       fetchTodoItems();
     } catch (error) {
-      alert('Failed to remove dependency');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Backend error occurred while removing the dependency.'
+      });
     }
+  };
+
+  const showDependencySelection = (item) => {
+    const availableItems = todoItems.filter(
+      i => i.id !== item.id && !item.dependencies?.some(d => d.id === i.id)
+    );
+
+    if (availableItems.length === 0) {
+      Swal.fire({
+        icon: 'info',
+        title: 'No Available Items',
+        text: 'There are no items available to add as a dependency.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    const optionsHtml = availableItems.map(i => `
+      <div class="swal-dependency-option" data-id="${i.id}">
+        <span class="dep-name">${i.name}</span>
+        <span class="dep-status-badge" style="background-color: ${getStatusColor(i.status)};">
+          ${i.status.replace('_', ' ')}
+        </span>
+      </div>
+    `).join('');
+
+    Swal.fire({
+      title: `Add Dependency to: ${item.name}`,
+      html: `
+        <p style="margin-bottom: 15px; color: #666;">Select an item that must be completed first:</p>
+        <div class="swal-dependency-list">
+          ${optionsHtml}
+        </div>
+      `,
+      width: '500px',
+      showCancelButton: true,
+      showConfirmButton: false,
+      cancelButtonText: 'Close',
+      customClass: {
+        popup: 'custom-swal-popup',
+        htmlContainer: 'custom-swal-html'
+      },
+      didOpen: () => {
+        const options = document.querySelectorAll('.swal-dependency-option');
+        options.forEach(option => {
+          option.addEventListener('click', async () => {
+            const depId = parseInt(option.getAttribute('data-id'));
+            Swal.close();
+            await handleAddDependency(item.id, depId);
+          });
+        });
+      }
+    });
   };
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'COMPLETED': return '#4caf50';
       case 'IN_PROGRESS': return '#ff9800';
+      case 'EXPIRED': return '#f44336';
       default: return '#9e9e9e';
     }
   };
@@ -250,12 +595,17 @@ function TodoApp() {
     return new Date(item.deadline) < new Date();
   };
 
+  const isLastDay = (item) => {
+    if (!item.deadline || item.status === 'COMPLETED') return false;
+    return new Date(item.deadline).toDateString() === new Date().toDateString();
+  };
+
   return (
     <div className="todo-app">
       <header className="app-header">
         <h1>Todo Lists</h1>
         <div className="user-info">
-          <span>Welcome, {user?.username}!</span>
+          <button onClick={() => setShowUserInfo(true)} className="btn-user-info"><span>Welcome, {user?.username}!</span></button>
           <button onClick={logout} className="btn-logout">Logout</button>
         </div>
       </header>
@@ -269,24 +619,6 @@ function TodoApp() {
               + New List
             </button>
           </div>
-
-          {showListForm && (
-            <form onSubmit={handleCreateList} className="list-form">
-              <input
-                type="text"
-                placeholder="List name"
-                value={listName}
-                onChange={(e) => setListName(e.target.value)}
-                required
-                maxLength="100"
-                autoFocus
-              />
-              <div className="form-buttons">
-                <button type="submit" className="btn-primary">Save</button>
-                <button type="button" onClick={() => { setShowListForm(false); setEditingListId(null); }} className="btn-secondary">Cancel</button>
-              </div>
-            </form>
-          )}
 
           <div className="lists-container">
             {todoLists.map(list => (
@@ -323,12 +655,7 @@ function TodoApp() {
                   <option value="NOT_STARTED">Not Started</option>
                   <option value="IN_PROGRESS">In Progress</option>
                   <option value="COMPLETED">Completed</option>
-                </select>
-
-                <select value={filters.expired} onChange={(e) => setFilters({ ...filters, expired: e.target.value })}>
-                  <option value="">All Items</option>
-                  <option value="true">Expired</option>
-                  <option value="false">Not Expired</option>
+                  <option value="EXPIRED">Expired</option>
                 </select>
 
                 <input
@@ -340,8 +667,8 @@ function TodoApp() {
                 />
 
                 <select value={sorting.sortBy} onChange={(e) => setSorting({ ...sorting, sortBy: e.target.value })}>
-                  <option value="createdate">Sort: Create Date</option>
                   <option value="deadline">Sort: Deadline</option>
+                  <option value="createdate">Sort: Create Date</option>
                   <option value="name">Sort: Name</option>
                   <option value="status">Sort: Status</option>
                 </select>
@@ -351,40 +678,7 @@ function TodoApp() {
                 </button>
               </div>
 
-              {/* Item Form */}
-              {showItemForm && (
-                <form onSubmit={handleItemFormSubmit} className="item-form">
-                  <input
-                    type="text"
-                    placeholder="Item name"
-                    value={itemForm.name}
-                    onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
-                    required
-                    maxLength="200"
-                  />
-                  <textarea
-                    placeholder="Description"
-                    value={itemForm.description}
-                    onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
-                    maxLength="1000"
-                    rows="3"
-                  />
-                  <input
-                    type="date"
-                    value={itemForm.deadline}
-                    onChange={(e) => setItemForm({ ...itemForm, deadline: e.target.value })}
-                  />
-                  <select value={itemForm.status} onChange={(e) => setItemForm({ ...itemForm, status: e.target.value })}>
-                    <option value="NOT_STARTED">Not Started</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="COMPLETED">Completed</option>
-                  </select>
-                  <div className="form-buttons">
-                    <button type="submit" className="btn-primary">{editingItemId ? 'Update' : 'Add'} Item</button>
-                    <button type="button" onClick={() => { setShowItemForm(false); setEditingItemId(null); }} className="btn-secondary">Cancel</button>
-                  </div>
-                </form>
-              )}
+              
 
               {/* Items List */}
               <div className="items-list">
@@ -392,24 +686,42 @@ function TodoApp() {
                   <p className="empty-state">No items yet. Add one above!</p>
                 ) : (
                   todoItems.map(item => (
-                    <div key={item.id} className={`item-card ${isExpired(item) ? 'expired' : ''}`}>
+                    <div key={item.id} className={`item-card ${isExpired(item) ? 'expired' : ''} ${item.status === 'COMPLETED' ? 'completed' : ''}`}>
                       <div className="item-main">
                         <div className="item-header">
                           <h3>{item.name}</h3>
                           <span className="status-badge" style={{ backgroundColor: getStatusColor(item.status) }}>
                             {item.status.replace('_', ' ')}
                           </span>
+                          
+                          <div className="item-actions">
+                            {item.status !== 'COMPLETED' && (
+                              <button onClick={() => handleMarkComplete(item.id)} className="btn-complete" title="Mark as complete">
+                                <FontAwesomeIcon icon={faCheck} />
+                              </button>
+                            )}
+                            <button onClick={() => handleEditItem(item)} className="btn-edit" title="Edit">
+                              <FontAwesomeIcon icon={faPen} />
+                            </button>
+                            <button onClick={() => showDependencySelection(item)} className="btn-dependency" title="Add dependency">
+                              <FontAwesomeIcon icon={faLink} />
+                            </button>
+                            <button onClick={() => handleDeleteItem(item.id)} className="btn-delete" title="Delete">
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                          </div>
                         </div>
                         
                         {item.description && <p className="item-description">{item.description}</p>}
                         
                         <div className="item-meta">
                           {item.deadline && (
-                            <span className={isExpired(item) ? 'deadline expired' : 'deadline'}>
-                              <FontAwesomeIcon icon={faCalendar} /> Deadline: {new Date(item.deadline).toLocaleString()}
+                            <span className={`deadline ${item.status === 'COMPLETED' ? 'completed' : ''} ${isExpired(item) ? 'expired' : ''}`}>
+                              <FontAwesomeIcon icon={faCalendar} /> Deadline: {new Date(item.deadline).toLocaleString().replace(', 23:59:59', '')}
                             </span>
                           )}
                           <span className="created">Created: {new Date(item.createdAt).toLocaleDateString()}</span>
+                          {isLastDay(item) && !isExpired(item) && (<span className="last-day-badge">Last Day!</span>)}
                         </div>
 
                         {item.dependencies && item.dependencies.length > 0 && (
@@ -425,22 +737,6 @@ function TodoApp() {
                         )}
                       </div>
 
-                      <div className="item-actions">
-                        {item.status !== 'COMPLETED' && (
-                          <button onClick={() => handleMarkComplete(item.id)} className="btn-complete" title="Mark as complete">
-                            <FontAwesomeIcon icon={faCheck} />
-                          </button>
-                        )}
-                        <button onClick={() => handleEditItem(item)} className="btn-edit" title="Edit">
-                          <FontAwesomeIcon icon={faPen} />
-                        </button>
-                        <button onClick={() => { setSelectedItemForDep(item); setShowDependencyModal(true); }} className="btn-dependency" title="Add dependency">
-                          <FontAwesomeIcon icon={faLink} />
-                        </button>
-                        <button onClick={() => handleDeleteItem(item.id)} className="btn-delete" title="Delete">
-                          <FontAwesomeIcon icon={faTrash} />
-                        </button>
-                      </div>
                     </div>
                   ))
                 )}
@@ -454,26 +750,6 @@ function TodoApp() {
         </div>
       </div>
 
-      {/* Dependency Modal */}
-      {showDependencyModal && selectedItemForDep && (
-        <div className="modal-overlay" onClick={() => setShowDependencyModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Add Dependency to: {selectedItemForDep.name}</h3>
-            <p>Select an item that must be completed first:</p>
-            <div className="dependency-list">
-              {todoItems.filter(item => item.id !== selectedItemForDep.id && !selectedItemForDep.dependencies?.some(d => d.id === item.id)).map(item => (
-                <div key={item.id} className="dependency-option" onClick={() => handleAddDependency(item.id)}>
-                  <span>{item.name}</span>
-                  <span className="status-badge" style={{ backgroundColor: getStatusColor(item.status) }}>
-                    {item.status.replace('_', ' ')}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => { setShowDependencyModal(false); setSelectedItemForDep(null); }} className="btn-secondary">Close</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

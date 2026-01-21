@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import Swal from 'sweetalert2'
 import './Auth.css';
 
 function Register() {
@@ -27,6 +28,16 @@ function Register() {
     e.preventDefault();
     setError('');
 
+    if (formData.username.length < 3 || formData.username.length > 20) {
+      setError('Username must be between 3 and 20 characters');
+      return;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setError('Invalid email address');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -45,7 +56,11 @@ function Register() {
         email: formData.email,
         password: formData.password
       });
-      alert('Registration successful! Please login.');
+      Swal.fire({
+        icon: 'success',
+        title: 'Registration Successful',
+        text: 'You can now log in with your credentials.'
+      });
       navigate('/login');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
