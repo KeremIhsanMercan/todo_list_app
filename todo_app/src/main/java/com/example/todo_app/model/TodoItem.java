@@ -1,12 +1,26 @@
 package com.example.todo_app.model;
 
-import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name = "todo_items")
@@ -29,7 +43,7 @@ public class TodoItem {
     private String status = "NOT_STARTED"; // NOT_STARTED, IN_PROGRESS, COMPLETED
     
     @Column(name = "deadline")
-    private LocalDateTime deadline;
+    private LocalDate deadline;
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -64,7 +78,7 @@ public class TodoItem {
     // Constructors
     public TodoItem() {}
     
-    public TodoItem(String name, String description, LocalDateTime deadline, TodoList todoList) {
+    public TodoItem(String name, String description, LocalDate deadline, TodoList todoList) {
         this.name = name;
         this.description = description;
         this.deadline = deadline;
@@ -104,11 +118,11 @@ public class TodoItem {
         this.status = status;
     }
     
-    public LocalDateTime getDeadline() {
+    public LocalDate getDeadline() {
         return deadline;
     }
     
-    public void setDeadline(LocalDateTime deadline) {
+    public void setDeadline(LocalDate deadline) {
         this.deadline = deadline;
     }
     
@@ -156,7 +170,7 @@ public class TodoItem {
         if (deadline == null || "COMPLETED".equals(status)) {
             return false;
         }
-        return LocalDateTime.now().isAfter(deadline);
+        return LocalDate.now().isAfter(deadline);
     }
     
     public boolean canBeCompleted() {

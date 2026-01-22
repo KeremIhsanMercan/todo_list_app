@@ -41,7 +41,7 @@ Open browser to: http://localhost:3000
    - Click "+ Add Item"
    - Name: `Write report`
    - Description: `Q1 financial report`
-   - Set deadline (optional)
+   - Set deadline
    - Status: `NOT_STARTED`
    - Click "Add Item"
 

@@ -1,6 +1,6 @@
 package com.example.todo_app.controller;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +19,7 @@ public class TodoItemScheduler {
     // Run every hour (3600000 ms = 1 hour)
     @Scheduled(fixedRate = 3600000)
     public void updateExpiredItems() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate now = LocalDate.now();
         List<TodoItem> allItems = todoItemRepository.findAll();
         
         for (TodoItem item : allItems) {

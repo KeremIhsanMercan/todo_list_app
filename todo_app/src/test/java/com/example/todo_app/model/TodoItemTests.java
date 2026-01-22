@@ -1,7 +1,7 @@
 // Test 1: TodoItemTests.java - Unit tests for TodoItem model
 package com.example.todo_app.model;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -37,7 +37,7 @@ class TodoItemTests {
     @DisplayName("Test 1: Item should be expired when deadline is in the past")
     void testItemIsExpired() {
         // Set deadline to yesterday
-        todoItem.setDeadline(LocalDateTime.now().minusDays(1));
+        todoItem.setDeadline(LocalDate.now().minusDays(1));
         todoItem.setStatus("NOT_STARTED");
 
         assertTrue(todoItem.isExpired(), "Item should be expired when deadline is past");
@@ -47,7 +47,7 @@ class TodoItemTests {
     @DisplayName("Test 2: Item should not be expired when deadline is in the future")
     void testItemIsNotExpired() {
         // Set deadline to tomorrow
-        todoItem.setDeadline(LocalDateTime.now().plusDays(1));
+        todoItem.setDeadline(LocalDate.now().plusDays(1));
         todoItem.setStatus("NOT_STARTED");
 
         assertFalse(todoItem.isExpired(), "Item should not be expired when deadline is in future");
@@ -57,7 +57,7 @@ class TodoItemTests {
     @DisplayName("Test 3: Completed item should never be expired")
     void testCompletedItemIsNotExpired() {
         // Set deadline to yesterday but mark as completed
-        todoItem.setDeadline(LocalDateTime.now().minusDays(1));
+        todoItem.setDeadline(LocalDate.now().minusDays(1));
         todoItem.setStatus("COMPLETED");
 
         assertFalse(todoItem.isExpired(), "Completed item should never be expired");

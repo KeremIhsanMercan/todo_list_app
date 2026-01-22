@@ -231,7 +231,7 @@ function TodoApp() {
             const data = {
               name: formData.name,
               description: formData.description,
-              deadline: formData.deadline ? formData.deadline + 'T23:59:59' : null,
+              deadline: formData.deadline || null,
               status: formData.status
             };
 
@@ -592,12 +592,19 @@ function TodoApp() {
 
   const isExpired = (item) => {
     if (!item.deadline || item.status === 'COMPLETED') return false;
-    return new Date(item.deadline) < new Date();
+    const deadlineDate = new Date(item.deadline + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return deadlineDate < today;
   };
 
   const isLastDay = (item) => {
     if (!item.deadline || item.status === 'COMPLETED') return false;
-    return new Date(item.deadline).toDateString() === new Date().toDateString();
+    const deadlineDate = new Date(item.deadline + 'T00:00:00');
+    const today = new Date();
+    deadlineDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    return deadlineDate.getTime() === today.getTime();
   };
 
   return (
@@ -717,7 +724,7 @@ function TodoApp() {
                         <div className="item-meta">
                           {item.deadline && (
                             <span className={`deadline ${item.status === 'COMPLETED' ? 'completed' : ''} ${isExpired(item) ? 'expired' : ''}`}>
-                              <FontAwesomeIcon icon={faCalendar} /> Deadline: {new Date(item.deadline).toLocaleString().replace(', 23:59:59', '')}
+                              <FontAwesomeIcon icon={faCalendar} /> Deadline: {new Date(item.deadline).toLocaleDateString()}
                             </span>
                           )}
                           <span className="created">Created: {new Date(item.createdAt).toLocaleDateString()}</span>
