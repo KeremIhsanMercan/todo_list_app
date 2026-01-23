@@ -4,6 +4,7 @@ import { todoListAPI, todoItemAPI, authAPI } from '../api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faCheck, faLink, faTrash, faCross, faX, faCalendar } from '@fortawesome/free-solid-svg-icons';
 import Swal from 'sweetalert2'
+import { TodoItemStatus, getStatusColor } from '../constants/TodoItemStatus';
 import './TodoApp.css';
 import { text } from '@fortawesome/fontawesome-svg-core';
 
@@ -141,7 +142,7 @@ function TodoApp() {
     name: '',
     description: '',
     deadline: '',
-    status: 'NOT_STARTED'
+    status: TodoItemStatus.NOT_STARTED
   });
   const [editingItemId, setEditingItemId] = useState(null);
   
@@ -170,7 +171,7 @@ function TodoApp() {
 
   useEffect(() => {
     if (!showItemForm) {
-      setItemForm({ name: '', description: '', deadline: '', status: 'NOT_STARTED' });
+      setItemForm({ name: '', description: '', deadline: '', status: TodoItemStatus.NOT_STARTED });
       setEditingItemId(null);
     } else {
       Swal.fire({
@@ -180,9 +181,9 @@ function TodoApp() {
         <textarea id="swal-input-description" class="swal2-textarea" placeholder="Description" maxlength="150" rows="3">${itemForm.description}</textarea>
         <input id="swal-input-deadline" class="swal2-input swal2-date-input" type="date" value="${itemForm.deadline}" required>
         <select id="swal-input-status" class="swal2-select">
-          <option value="NOT_STARTED" ${itemForm.status === 'NOT_STARTED' ? 'selected' : ''}>Not Started</option>
-          <option value="IN_PROGRESS" ${itemForm.status === 'IN_PROGRESS' ? 'selected' : ''}>In Progress</option>
-          <option value="COMPLETED" ${itemForm.status === 'COMPLETED' ? 'selected' : ''}>Completed</option>
+          <option value="${TodoItemStatus.NOT_STARTED}" ${itemForm.status === TodoItemStatus.NOT_STARTED ? 'selected' : ''}>Not Started</option>
+          <option value="${TodoItemStatus.IN_PROGRESS}" ${itemForm.status === TodoItemStatus.IN_PROGRESS ? 'selected' : ''}>In Progress</option>
+          <option value="${TodoItemStatus.COMPLETED}" ${itemForm.status === TodoItemStatus.COMPLETED ? 'selected' : ''}>Completed</option>
         </select>
       `,
         width: '450px',
@@ -241,7 +242,7 @@ function TodoApp() {
               await todoItemAPI.create(selectedList.id, data);
             }
 
-            setItemForm({ name: '', description: '', deadline: '', status: 'NOT_STARTED' });
+            setItemForm({ name: '', description: '', deadline: '', status: TodoItemStatus.NOT_STARTED });
             setShowItemForm(false);
             setEditingItemId(null);
             fetchTodoItems();
@@ -255,6 +256,9 @@ function TodoApp() {
               position: 'top'
             });
           } catch (error) {
+            setShowItemForm(false);
+            setEditingItemId(null);
+            
             error.response?.data?.message
               ? Swal.fire({
                   icon: 'warning',
@@ -581,17 +585,8 @@ function TodoApp() {
     });
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'COMPLETED': return '#4caf50';
-      case 'IN_PROGRESS': return '#ff9800';
-      case 'EXPIRED': return '#f44336';
-      default: return '#9e9e9e';
-    }
-  };
-
   const isExpired = (item) => {
-    if (!item.deadline || item.status === 'COMPLETED') return false;
+    if (!item.deadline || item.status === TodoItemStatus.COMPLETED) return false;
     const deadlineDate = new Date(item.deadline + 'T00:00:00');
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -599,7 +594,7 @@ function TodoApp() {
   };
 
   const isLastDay = (item) => {
-    if (!item.deadline || item.status === 'COMPLETED') return false;
+    if (!item.deadline || item.status === TodoItemStatus.COMPLETED) return false;
     const deadlineDate = new Date(item.deadline + 'T00:00:00');
     const today = new Date();
     deadlineDate.setHours(0, 0, 0, 0);
@@ -650,7 +645,7 @@ function TodoApp() {
             <>
               <div className="items-header">
                 <h2>{selectedList.name}</h2>
-                <button onClick={() => { setShowItemForm(true); setEditingItemId(null); setItemForm({ name: '', description: '', deadline: '', status: 'NOT_STARTED' }); }} className="btn-add">
+                <button onClick={() => { setShowItemForm(true); setEditingItemId(null); setItemForm({ name: '', description: '', deadline: '', status: TodoItemStatus.NOT_STARTED }); }} className="btn-add">
                   + Add Item
                 </button>
               </div>
@@ -659,10 +654,10 @@ function TodoApp() {
               <div className="filters-bar">
                 <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
                   <option value="">All Status</option>
-                  <option value="NOT_STARTED">Not Started</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="EXPIRED">Expired</option>
+                  <option value={TodoItemStatus.NOT_STARTED}>Not Started</option>
+                  <option value={TodoItemStatus.IN_PROGRESS}>In Progress</option>
+                  <option value={TodoItemStatus.COMPLETED}>Completed</option>
+                  <option value={TodoItemStatus.EXPIRED}>Expired</option>
                 </select>
 
                 <input
