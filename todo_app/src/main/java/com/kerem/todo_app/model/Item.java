@@ -23,9 +23,15 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "todo_items")
+@Getter
+@Setter
+@NoArgsConstructor
 public class Item {
     
     @Id
@@ -78,95 +84,11 @@ public class Item {
         createdAt = LocalDateTime.now();
     }
     
-    // Constructors
-    public Item() {}
-    
     public Item(String name, String description, LocalDate deadline, List list) {
         this.name = name;
         this.description = description;
         this.deadline = deadline;
         this.list = list;
-    }
-    
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-    
-    public void setId(Long id) {
-        this.id = id;
-    }
-    
-    public String getName() {
-        return name;
-    }
-    
-    public void setName(String name) {
-        this.name = name;
-    }
-    
-    public String getDescription() {
-        return description;
-    }
-    
-    public void setDescription(String description) {
-        this.description = description;
-    }
-    
-    public ItemStatus getStatus() {
-        return status;
-    }
-    
-    public void setStatus(ItemStatus status) {
-        this.status = status;
-    }
-    
-    public LocalDate getDeadline() {
-        return deadline;
-    }
-    
-    public void setDeadline(LocalDate deadline) {
-        this.deadline = deadline;
-    }
-    
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-    
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-    
-    public LocalDateTime getCompletedAt() {
-        return completedAt;
-    }
-    
-    public void setCompletedAt(LocalDateTime completedAt) {
-        this.completedAt = completedAt;
-    }
-    
-    public List getList() {
-        return list;
-    }
-    
-    public void setList(List list) {
-        this.list = list;
-    }
-    
-    public Set<Item> getDependencies() {
-        return dependencies;
-    }
-    
-    public void setDependencies(Set<Item> dependencies) {
-        this.dependencies = dependencies;
-    }
-    
-    public Set<Item> getDependents() {
-        return dependents;
-    }
-    
-    public void setDependents(Set<Item> dependents) {
-        this.dependents = dependents;
     }
     
     public boolean isExpired() {

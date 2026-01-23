@@ -20,9 +20,15 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "todo_lists")
+@Getter
+@Setter
+@NoArgsConstructor
 public class List {
     
     @Id
@@ -50,52 +56,8 @@ public class List {
         createdAt = LocalDateTime.now();
     }
     
-    // Constructors
-    public List() {}
-    
     public List(String name, User user) {
         this.name = name;
         this.user = user;
-    }
-    
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-    
-    public void setId(Long id) {
-        this.id = id;
-    }
-    
-    public String getName() {
-        return name;
-    }
-    
-    public void setName(String name) {
-        this.name = name;
-    }
-    
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-    
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-    
-    public User getUser() {
-        return user;
-    }
-    
-    public void setUser(User user) {
-        this.user = user;
-    }
-    
-    public Set<Item> getItems() {
-        return items;
-    }
-    
-    public void setItems(Set<Item> items) {
-        this.items = items;
     }
 }
