@@ -20,8 +20,6 @@ import com.kerem.todo_app.dto.UpdateUserRequest;
 import com.kerem.todo_app.security.UserDetailsImpl;
 import com.kerem.todo_app.service.AuthService;
 
-import jakarta.validation.Valid;
-
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/api/auth")
@@ -31,7 +29,7 @@ public class AuthController {
     private AuthService authService;
     
     @PostMapping("/login")
-    public ResponseEntity<JwtResponse> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<JwtResponse> authenticateUser(@RequestBody LoginRequest loginRequest) {
         try {
             JwtResponse response = authService.authenticateUser(
                     loginRequest.getUsername(), 
@@ -43,7 +41,7 @@ public class AuthController {
     }
     
     @PostMapping("/register")
-    public ResponseEntity<MessageResponse> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
+    public ResponseEntity<MessageResponse> registerUser(@RequestBody SignupRequest signUpRequest) {
         try {
             authService.registerUser(
                     signUpRequest.getUsername(),
@@ -58,7 +56,7 @@ public class AuthController {
     }
     
     @PutMapping("/update")
-    public ResponseEntity<Object> updateUser(@Valid @RequestBody UpdateUserRequest updateRequest, 
+    public ResponseEntity<Object> updateUser(@RequestBody UpdateUserRequest updateRequest, 
                                         Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         Long userId = userDetails.getId();
@@ -82,7 +80,7 @@ public class AuthController {
     }
     
     @DeleteMapping("/delete")
-    public ResponseEntity<MessageResponse> deleteAccount(@Valid @RequestBody DeleteAccountRequest deleteRequest,
+    public ResponseEntity<MessageResponse> deleteAccount(@RequestBody DeleteAccountRequest deleteRequest,
                                           Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         Long userId = userDetails.getId();
