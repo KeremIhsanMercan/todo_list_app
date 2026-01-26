@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { formatErrorMessages } from '../utils/errorHandler';
 import './Auth.css';
 
 function Login() {
@@ -21,7 +22,7 @@ function Login() {
       await login(username, password);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      setError(formatErrorMessages(err));
     } finally {
       setLoading(false);
     }
@@ -32,7 +33,7 @@ function Login() {
       <div className="auth-box">
         <h1>Login to Todo App</h1>
         <form onSubmit={handleSubmit} className="auth-form">
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="error-message" style={{ whiteSpace: 'pre-line' }}>{error}</div>}
           
           <input
             type="text"

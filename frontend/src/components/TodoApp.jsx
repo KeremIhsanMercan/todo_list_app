@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPen, faCheck, faLink, faTrash, faCross, faX, faCalendar } from '@fortawesome/free-solid-svg-icons';
 import Swal from 'sweetalert2'
 import { TodoItemStatus, getStatusColor } from '../constants/TodoItemStatus';
+import { formatErrorMessages } from '../utils/errorHandler';
 import './TodoApp.css';
 import { text } from '@fortawesome/fontawesome-svg-core';
 
@@ -89,7 +90,7 @@ function TodoApp() {
                 Swal.fire({
                   icon: 'error',
                   title: 'Delete Failed',
-                  text: error.response?.data?.message || 'Failed to delete account.'
+                  text: formatErrorMessages(error)
                 });
                 setShowUserInfo(true);
               }
@@ -126,7 +127,7 @@ function TodoApp() {
             Swal.fire({
               icon: 'error',
               title: 'Update Failed',
-              text: error.response?.data?.message || 'Failed to update user information.',
+              text: formatErrorMessages(error),
             });
           }
         }
@@ -259,17 +260,11 @@ function TodoApp() {
             setShowItemForm(false);
             setEditingItemId(null);
             
-            error.response?.data?.message
-              ? Swal.fire({
-                  icon: 'warning',
-                  title: 'Dependency Warning',
-                  text: error.response.data.message
-                })
-              : Swal.fire({
-                  icon: 'error',
-                  title: 'Error',
-                  text: 'Backend error occurred while creating/updating the item.'
-                });
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: formatErrorMessages(error)
+            });
           }
         } else {
           setShowItemForm(false);
@@ -335,17 +330,11 @@ function TodoApp() {
             });
           }
           catch (error) {
-            error.response?.data?.message
-              ? Swal.fire({
-                  icon: 'warning',
-                  title: 'Warning',
-                  text: error.response.data.message
-                })
-              : Swal.fire({
-                  icon: 'error',
-                  title: 'Error',
-                  text: 'Backend error occurred while creating/updating the list.'
-                });
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: formatErrorMessages(error)
+            });
           }
         } else {
           setShowListForm(false);
@@ -391,7 +380,8 @@ function TodoApp() {
       });
       
       const response = await todoItemAPI.getAll(selectedList.id, params);
-      setTodoItems(response.data); // Backend handles expired status
+      // Extract content array from paginated response
+      setTodoItems(response.data.content || response.data); // Backend returns Page object with content array
     } catch (error) {
       Swal.fire({
         icon: 'error',
@@ -424,7 +414,7 @@ function TodoApp() {
           Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: error.response?.data?.message || 'Backend error occurred while deleting the list.'
+            text: formatErrorMessages(error)
           });
         }
       }
@@ -448,24 +438,31 @@ function TodoApp() {
       await todoItemAPI.markComplete(selectedList.id, itemId);
       fetchTodoItems();
     } catch (error) {
-      error.response?.data?.message
-        ? Swal.fire({
-            icon: 'warning',
-            title: 'Dependency Warning',
-            text: error.response.data.message
-          })
-        : Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Backend error occurred while marking the item as complete.'
-          });
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: formatErrorMessages(error)
+      });
     }
   };
 
   const handleDeleteItem = async (itemId) => {
+    // Find the item to get dependents
+    const item = todoItems.find(i => i.id === itemId);
+    const dependents = todoItems.filter(i => 
+      i.dependencies && i.dependencies.some(dep => dep.id === itemId)
+    );
+    
+    let warningHtml = 'This will delete the todo item.';
+    if (dependents.length > 0) {
+      const dependentNames = dependents.map(d => d.name).slice(0, 3).join(', ');
+      const moreText = dependents.length > 3 ? ` and ${dependents.length - 3} more` : '';
+      warningHtml += `<br><br><strong>Warning:</strong> The following items depend on this:<br><em>${dependentNames}${moreText}</em><br><br>Their dependencies on this item will be removed.`;
+    }
+    
     Swal.fire({
       title: 'Are you sure?',
-      text: 'This will delete the todo item.',
+      html: warningHtml,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Yes, delete it!',
@@ -476,17 +473,11 @@ function TodoApp() {
           await todoItemAPI.delete(selectedList.id, itemId);
           fetchTodoItems();
         } catch (error) {
-          error.response?.data?.message
-            ? Swal.fire({
-                icon: 'warning',
-                title: 'Warning',
-                text: error.response.data.message
-              })
-            : Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Backend error occurred while deleting the item.'
-              });
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: formatErrorMessages(error)
+          });
         }
       }
     });
@@ -505,17 +496,11 @@ function TodoApp() {
         position: 'top'
       });
     } catch (error) {
-      error.response?.data?.message
-        ? Swal.fire({
-            icon: 'warning',
-            title: 'Warning',
-            text: error.response.data.message
-          })
-        : Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Failed to add dependency'
-          });
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: formatErrorMessages(error)
+      });
     }
   };
 
@@ -532,12 +517,54 @@ function TodoApp() {
     }
   };
 
-  const showDependencySelection = (item) => {
-    const availableItems = todoItems.filter(
-      i => i.id !== item.id && !item.dependencies?.some(d => d.id === i.id)
-    );
+  const showDependencySelection = async (item) => {
+    // Function to fetch and render options based on search
+    const fetchAndRenderOptions = async (searchTerm = '') => {
+      try {
+        // Fetch items with search parameter (no pagination limit or large size)
+        const params = {
+          name: searchTerm,
+          size: 1000 // Fetch up to 1000 items to show all available
+        };
+        
+        // Remove empty params
+        Object.keys(params).forEach(key => {
+          if (params[key] === '' || params[key] === null) {
+            delete params[key];
+          }
+        });
+        
+        const response = await todoItemAPI.getAll(selectedList.id, params);
+        const allItems = response.data.content || response.data;
+        
+        // Filter out unavailable items
+        const availableItems = allItems.filter(i => 
+          i.id !== item.id && // Exclude self
+          !(item.dependencies && item.dependencies.some(dep => dep.id === i.id)) && // Exclude existing dependencies
+          !(i.dependencies && i.dependencies.some(dep => dep.id === item.id)) // Exclude obvious circular dependencies
+        );
 
-    if (availableItems.length === 0) {
+        if (availableItems.length === 0) {
+          return '<p style="color: #999; padding: 20px; text-align: center;">No items found</p>';
+        }
+
+        return availableItems.map(i => `
+          <div class="swal-dependency-option" data-id="${i.id}">
+            <span class="dep-name">${i.name}</span>
+            <span class="dep-status-badge" style="background-color: ${getStatusColor(i.status)};">
+              ${i.status.replace('_', ' ')}
+            </span>
+          </div>
+        `).join('');
+      } catch (error) {
+        return '<p style="color: #f44336; padding: 20px; text-align: center;">Error loading items</p>';
+      }
+    };
+
+    // Initial check - fetch all items first
+    const initialHtml = await fetchAndRenderOptions();
+    
+    if (initialHtml.includes('No items found')) {
       Swal.fire({
         icon: 'info',
         title: 'No Available Items',
@@ -547,21 +574,19 @@ function TodoApp() {
       return;
     }
 
-    const optionsHtml = availableItems.map(i => `
-      <div class="swal-dependency-option" data-id="${i.id}">
-        <span class="dep-name">${i.name}</span>
-        <span class="dep-status-badge" style="background-color: ${getStatusColor(i.status)};">
-          ${i.status.replace('_', ' ')}
-        </span>
-      </div>
-    `).join('');
-
     Swal.fire({
       title: `Add Dependency to: ${item.name}`,
       html: `
-        <p style="margin-bottom: 15px; color: #666;">Select an item that must be completed first:</p>
-        <div class="swal-dependency-list">
-          ${optionsHtml}
+        <p style="margin-bottom: 10px; color: #666;">Select an item that must be completed first:</p>
+        <input 
+          id="dependency-search" 
+          type="text" 
+          class="swal2-input" 
+          placeholder="Search items by name..." 
+          style="margin-bottom: 15px;"
+        />
+        <div id="dependency-list-container" class="swal-dependency-list">
+          ${initialHtml}
         </div>
       `,
       width: '500px',
@@ -573,14 +598,45 @@ function TodoApp() {
         htmlContainer: 'custom-swal-html'
       },
       didOpen: () => {
-        const options = document.querySelectorAll('.swal-dependency-option');
-        options.forEach(option => {
-          option.addEventListener('click', async () => {
-            const depId = parseInt(option.getAttribute('data-id'));
-            Swal.close();
-            await handleAddDependency(item.id, depId);
-          });
+        const searchInput = document.getElementById('dependency-search');
+        const listContainer = document.getElementById('dependency-list-container');
+        let searchTimeout;
+
+        // Add search functionality with debounce
+        searchInput.addEventListener('input', (e) => {
+          const searchTerm = e.target.value;
+          
+          // Clear previous timeout
+          clearTimeout(searchTimeout);
+          
+          // Show loading state
+          listContainer.innerHTML = '<p style="color: #999; padding: 20px; text-align: center;">Searching...</p>';
+          
+          // Debounce search (wait 500ms after user stops typing)
+          searchTimeout = setTimeout(async () => {
+            const optionsHtml = await fetchAndRenderOptions(searchTerm);
+            listContainer.innerHTML = optionsHtml;
+            attachClickListeners();
+          }, 500);
         });
+
+        // Function to attach click listeners to options
+        const attachClickListeners = () => {
+          const options = document.querySelectorAll('.swal-dependency-option');
+          options.forEach(option => {
+            option.addEventListener('click', async () => {
+              const depId = parseInt(option.getAttribute('data-id'));
+              Swal.close();
+              await handleAddDependency(item.id, depId);
+            });
+          });
+        };
+
+        // Initial attachment
+        attachClickListeners();
+        
+        // Focus on search input
+        searchInput.focus();
       }
     });
   };

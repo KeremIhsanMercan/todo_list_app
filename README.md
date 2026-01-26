@@ -195,9 +195,9 @@ Enjoy your organized tasks!
 ##  Project Structure
 
 ```
-todo_tool/
- todo_app/                    # Backend (Java/Spring Boot)
-    src/main/java/com/example/todo_app/
+todo_list_app/
+ todoApp/                    # Backend (Java/Spring Boot)
+    src/main/java/com/kerem/todoApp/
        model/
           User.java        # User entity
           TodoList.java    # TodoList entity

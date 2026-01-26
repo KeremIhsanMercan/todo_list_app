@@ -1,0 +1,15 @@
+{
+  "properties": [
+    {
+      "name": "app.jwtSecret",
+      "type": "java.lang.String",
+      "description": "Secret key for JWT token generation. Must be at least 512 bits (64 characters) for HS512 algorithm."
+    },
+    {
+      "name": "app.jwtExpirationMs",
+      "type": "java.lang.Integer",
+      "description": "JWT token expiration time in milliseconds.",
+      "defaultValue": 86400000
+    }
+  ]
+}

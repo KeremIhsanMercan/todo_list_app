@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import Swal from 'sweetalert2'
+import { formatErrorMessages } from '../utils/errorHandler';
 import './Auth.css';
 
 function Register() {
@@ -28,23 +29,8 @@ function Register() {
     e.preventDefault();
     setError('');
 
-    if (formData.username.length < 3 || formData.username.length > 20) {
-      setError('Username must be between 3 and 20 characters');
-      return;
-    }
-
-    if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      setError('Invalid email address');
-      return;
-    }
-
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
       return;
     }
 
@@ -63,7 +49,7 @@ function Register() {
       });
       navigate('/login');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(formatErrorMessages(err));
     } finally {
       setLoading(false);
     }
@@ -74,7 +60,7 @@ function Register() {
       <div className="auth-box">
         <h1>Register for Todo App</h1>
         <form onSubmit={handleSubmit} className="auth-form">
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="error-message" style={{ whiteSpace: 'pre-line' }}>{error}</div>}
           
           <input
             type="text"
