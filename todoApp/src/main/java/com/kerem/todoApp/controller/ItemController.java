@@ -7,7 +7,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,13 +19,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.kerem.todoApp.dto.MessageResponse;
+import com.kerem.todoApp.config.AppConfig;
 import com.kerem.todoApp.dto.ItemCreateRequest;
 import com.kerem.todoApp.dto.ItemResponse;
 import com.kerem.todoApp.dto.ItemUpdateRequest;
+import com.kerem.todoApp.dto.MessageResponse;
 import com.kerem.todoApp.model.ItemStatus;
 import com.kerem.todoApp.service.ItemService;
-import com.kerem.todoApp.Parameters;
 
 import jakarta.validation.Valid;
 
@@ -38,6 +37,9 @@ public class ItemController {
     @Autowired
     private ItemService itemService;
     
+    @Autowired
+    private AppConfig appConfig;
+    
     // Get all items in a todo list with filtering, sorting, and pagination
     @GetMapping
     public ResponseEntity<Page<ItemResponse>> getTodoItems(
@@ -48,8 +50,10 @@ public class ItemController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "asc") String sortOrder,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = Parameters.DEFAULT_PAGE_SIZE_STR) int size,
-            Authentication authentication) {
+            @RequestParam(defaultValue = "100") int size) {
+        
+        // Apply max page size limit
+        size = Math.min(size, appConfig.getDefaultPageSize());
         
         // Parse status enum
         ItemStatus statusEnum = null;
@@ -64,13 +68,19 @@ public class ItemController {
         // Map frontend sort field names to entity field names
         String entitySortField = mapSortField(sortBy);
         
-        // Build Sort object
-        Sort sort = Sort.by("desc".equalsIgnoreCase(sortOrder) ? Sort.Direction.DESC : Sort.Direction.ASC, entitySortField);
+        // Build Sort object with case-insensitive sorting for name
+        Sort sort;
+        if ("name".equals(entitySortField)) {
+            Sort.Direction direction = "desc".equalsIgnoreCase(sortOrder) ? Sort.Direction.DESC : Sort.Direction.ASC;
+            sort = Sort.by(Sort.Order.by(entitySortField).with(direction).ignoreCase());
+        } else {
+            sort = Sort.by("desc".equalsIgnoreCase(sortOrder) ? Sort.Direction.DESC : Sort.Direction.ASC, entitySortField);
+        }
         
         // Build Pageable
         Pageable pageable = PageRequest.of(page, size, sort);
         
-        Page<ItemResponse> items = itemService.getItemsForList(listId, statusEnum, name, pageable, authentication);
+        Page<ItemResponse> items = itemService.getItemsForList(listId, statusEnum, name, pageable);
         return ResponseEntity.ok(items);
     }
     
@@ -91,17 +101,16 @@ public class ItemController {
     
     // Get item by id
     @GetMapping("/{itemId}")
-    public ResponseEntity<ItemResponse> getTodoItem(@PathVariable Long listId, @PathVariable Long itemId, Authentication authentication) {
-        ItemResponse item = itemService.getItemById(listId, itemId, authentication);
+    public ResponseEntity<ItemResponse> getTodoItem(@PathVariable Long listId, @PathVariable Long itemId) {
+        ItemResponse item = itemService.getItemById(listId, itemId);
         return ResponseEntity.ok(item);
     }
 
     // Create new todo item
     @PostMapping
     public ResponseEntity<ItemResponse> createTodoItem(@PathVariable Long listId,
-                                       @Valid @RequestBody ItemCreateRequest itemRequest,
-                                       Authentication authentication) {
-        ItemResponse savedItem = itemService.createItem(listId, authentication, itemRequest);
+                                       @Valid @RequestBody ItemCreateRequest itemRequest) {
+        ItemResponse savedItem = itemService.createItem(listId, itemRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedItem);
     }
 
@@ -109,18 +118,16 @@ public class ItemController {
     @PutMapping("/{itemId}")
     public ResponseEntity<ItemResponse> updateTodoItem(@PathVariable Long listId,
                                        @PathVariable Long itemId,
-                                       @Valid @RequestBody ItemUpdateRequest itemDetails,
-                                       Authentication authentication) {
-        ItemResponse updatedItem = itemService.updateItem(listId, itemId, authentication, itemDetails);
+                                       @Valid @RequestBody ItemUpdateRequest itemDetails) {
+        ItemResponse updatedItem = itemService.updateItem(listId, itemId, itemDetails);
         return ResponseEntity.ok(updatedItem);
     }
         
     // Mark item as complete
     @PatchMapping("/{itemId}/complete")
     public ResponseEntity<ItemResponse> markAsComplete(@PathVariable Long listId,
-                                       @PathVariable Long itemId,
-                                       Authentication authentication) {
-        ItemResponse updatedItem = itemService.markAsComplete(listId, itemId, authentication);
+                                       @PathVariable Long itemId) {
+        ItemResponse updatedItem = itemService.markAsComplete(listId, itemId);
         return ResponseEntity.ok(updatedItem);
     }
     
@@ -128,9 +135,8 @@ public class ItemController {
     @PostMapping("/{itemId}/dependencies/{dependencyId}")
     public ResponseEntity<MessageResponse> addDependency(@PathVariable Long listId,
                                           @PathVariable Long itemId,
-                                          @PathVariable Long dependencyId,
-                                          Authentication authentication) {
-        itemService.addDependency(listId, itemId, dependencyId, authentication);
+                                          @PathVariable Long dependencyId) {
+        itemService.addDependency(listId, itemId, dependencyId);
         return ResponseEntity.ok(new MessageResponse("Dependency added successfully."));
     }
     
@@ -138,18 +144,16 @@ public class ItemController {
     @DeleteMapping("/{itemId}/dependencies/{dependencyId}")
     public ResponseEntity<MessageResponse> removeDependency(@PathVariable Long listId,
                                              @PathVariable Long itemId,
-                                             @PathVariable Long dependencyId,
-                                             Authentication authentication) {
-        itemService.removeDependency(listId, itemId, dependencyId, authentication);
+                                             @PathVariable Long dependencyId) {
+        itemService.removeDependency(listId, itemId, dependencyId);
         return ResponseEntity.ok(new MessageResponse("Dependency removed successfully."));
     }
     
     // Delete todo item
     @DeleteMapping("/{itemId}")
     public ResponseEntity<MessageResponse> deleteTodoItem(@PathVariable Long listId,
-                                           @PathVariable Long itemId,
-                                           Authentication authentication) {
-        itemService.deleteItem(listId, itemId, authentication);
+                                           @PathVariable Long itemId) {
+        itemService.deleteItem(listId, itemId);
         return ResponseEntity.ok(new MessageResponse("Todo item deleted successfully."));
     }
 }

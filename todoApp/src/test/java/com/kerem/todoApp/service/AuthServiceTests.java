@@ -5,13 +5,16 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -21,12 +24,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.kerem.todoApp.dto.JwtResponse;
-import com.kerem.todoApp.exception.AuthenticationException;
 import com.kerem.todoApp.exception.ResourceAlreadyExistsException;
 import com.kerem.todoApp.exception.ResourceNotFoundException;
 import com.kerem.todoApp.model.User;
 import com.kerem.todoApp.repository.UserRepository;
 import com.kerem.todoApp.security.JwtUtils;
+import com.kerem.todoApp.security.SecurityUtils;
 import com.kerem.todoApp.security.UserDetailsImpl;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,6 +56,7 @@ public class AuthServiceTests {
     @InjectMocks
     private AuthService authService;
     
+    private MockedStatic<SecurityUtils> securityUtilsMock;
     private User testUser;
     private UserDetailsImpl userDetails;
     
@@ -64,8 +68,20 @@ public class AuthServiceTests {
         
         userDetails = UserDetailsImpl.build(testUser);
         
+        // Mock SecurityUtils to return user ID
+        securityUtilsMock = mockStatic(SecurityUtils.class);
+        securityUtilsMock.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+        
         // Configure mock authentication for tests that need it (lenient to avoid UnnecessaryStubbingException)
         lenient().when(mockAuth.getPrincipal()).thenReturn(userDetails);
+    }
+    
+    @SuppressWarnings("unused")
+    @AfterEach
+    void tearDown() {
+        if (securityUtilsMock != null) {
+            securityUtilsMock.close();
+        }
     }
     
     @Test
@@ -162,7 +178,7 @@ public class AuthServiceTests {
         when(jwtUtils.generateJwtToken(authentication)).thenReturn(jwt);
         
         // Act
-        JwtResponse response = authService.updateUser(mockAuth, newUsername, newEmail, password);
+        JwtResponse response = authService.updateUser(newUsername, newEmail, password);
         
         // Assert
         assertNotNull(response);
@@ -177,7 +193,7 @@ public class AuthServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> {
-            authService.updateUser(mockAuth, "newuser", "new@example.com", "password123");
+            authService.updateUser("newuser", "new@example.com", "password123");
         });
         
         assertEquals("User not found", exception.getMessage());
@@ -190,8 +206,8 @@ public class AuthServiceTests {
         when(encoder.matches("wrongpassword", testUser.getPassword())).thenReturn(false);
         
         // Act & Assert
-        Exception exception = assertThrows(AuthenticationException.class, () -> {
-            authService.updateUser(mockAuth, "newuser", "new@example.com", "wrongpassword");
+        Exception exception = assertThrows(Exception.class, () -> {
+            authService.updateUser("newuser", "new@example.com", "wrongpassword");
         });
         
         assertEquals("Incorrect password!", exception.getMessage());
@@ -206,7 +222,7 @@ public class AuthServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(ResourceAlreadyExistsException.class, () -> {
-            authService.updateUser(mockAuth, "takenuser", "new@example.com", "password123");
+            authService.updateUser("takenuser", "new@example.com", "password123");
         });
         
         assertEquals("Username is already taken!", exception.getMessage());
@@ -221,7 +237,7 @@ public class AuthServiceTests {
         when(encoder.matches(password, testUser.getPassword())).thenReturn(true);
         
         // Act
-        authService.deleteAccount(mockAuth, password);
+        authService.deleteAccount(password);
         
         // Assert
         verify(userRepository).delete(testUser);
@@ -234,7 +250,7 @@ public class AuthServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> {
-            authService.deleteAccount(mockAuth, "password123");
+            authService.deleteAccount("password123");
         });
         
         assertEquals("User not found", exception.getMessage());
@@ -247,8 +263,8 @@ public class AuthServiceTests {
         when(encoder.matches("wrongpassword", testUser.getPassword())).thenReturn(false);
         
         // Act & Assert
-        Exception exception = assertThrows(AuthenticationException.class, () -> {
-            authService.deleteAccount(mockAuth, "wrongpassword");
+        Exception exception = assertThrows(Exception.class, () -> {
+            authService.deleteAccount("wrongpassword");
         });
         
         assertEquals("Incorrect password!", exception.getMessage());

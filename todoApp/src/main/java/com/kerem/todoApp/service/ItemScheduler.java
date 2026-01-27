@@ -1,4 +1,4 @@
-package com.kerem.todoApp.controller;
+package com.kerem.todoApp.service;
 
 import java.time.LocalDate;
 import java.util.List;

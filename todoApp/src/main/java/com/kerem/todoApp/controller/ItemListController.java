@@ -3,7 +3,6 @@ package com.kerem.todoApp.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,38 +29,37 @@ public class ItemListController {
     
     // Get all lists for current user
     @GetMapping
-    public ResponseEntity<java.util.List<ItemList>> getUserLists(Authentication authentication) {
-        java.util.List<ItemList> lists = itemListService.getUserLists(authentication);
+    public ResponseEntity<java.util.List<ItemList>> getUserLists() {
+        java.util.List<ItemList> lists = itemListService.getUserLists();
         return ResponseEntity.ok(lists);
     }
     
     // Get list by id
     @GetMapping("/{id}")
-    public ResponseEntity<ItemList> getListById(@PathVariable Long id, Authentication authentication) {
-        ItemList list = itemListService.getListById(id, authentication);
+    public ResponseEntity<ItemList> getListById(@PathVariable Long id) {
+        ItemList list = itemListService.getListById(id);
         return ResponseEntity.ok(list);
     }
     
     // Create new list
     @PostMapping
-    public ResponseEntity<ItemList> createList(@Valid @RequestBody ItemList listRequest, Authentication authentication) {
-        ItemList savedList = itemListService.createList(listRequest.getName(), authentication);
+    public ResponseEntity<ItemList> createList(@Valid @RequestBody ItemList listRequest) {
+        ItemList savedList = itemListService.createList(listRequest.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(savedList);
     }
     
     // Update list
     @PutMapping("/{id}")
     public ResponseEntity<ItemList> updateList(@PathVariable Long id, 
-                                           @Valid @RequestBody ItemList listDetails,
-                                           Authentication authentication) {
-        ItemList updatedList = itemListService.updateList(id, listDetails.getName(), authentication);
+                                           @Valid @RequestBody ItemList listDetails) {
+        ItemList updatedList = itemListService.updateList(id, listDetails.getName());
         return ResponseEntity.ok(updatedList);
     }
     
     // Delete list
     @DeleteMapping("/{id}")
-    public ResponseEntity<MessageResponse> deleteList(@PathVariable Long id, Authentication authentication) {
-        itemListService.deleteList(id, authentication);
+    public ResponseEntity<MessageResponse> deleteList(@PathVariable Long id) {
+        itemListService.deleteList(id);
         return ResponseEntity.ok(new MessageResponse("List deleted successfully"));
     }
 }

@@ -3,10 +3,9 @@ package com.kerem.todoApp.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
-import com.kerem.todoApp.Parameters;
+import com.kerem.todoApp.config.AppConfig;
 import com.kerem.todoApp.dto.ItemCreateRequest;
 import com.kerem.todoApp.dto.ItemResponse;
 import com.kerem.todoApp.dto.ItemUpdateRequest;
@@ -18,7 +17,7 @@ import com.kerem.todoApp.model.ItemList;
 import com.kerem.todoApp.model.ItemStatus;
 import com.kerem.todoApp.repository.ItemListRepository;
 import com.kerem.todoApp.repository.ItemRepository;
-import com.kerem.todoApp.security.UserDetailsImpl;
+import com.kerem.todoApp.security.SecurityUtils;
 
 @Service
 public class ItemService {
@@ -30,14 +29,17 @@ public class ItemService {
     private ItemListRepository itemListRepository;
     
     @Autowired
-    private ItemMapper itemMapper;  // MapStruct will generate this
+    private ItemMapper itemMapper;
+    
+    @Autowired
+    private AppConfig appConfig;
     
     /**
      * Get all items for a list with optional filtering, sorting, and pagination
      */
     public Page<ItemResponse> getItemsForList(Long listId, ItemStatus status, String name, 
-                                               Pageable pageable, Authentication authentication) {
-        validateAndGetList(listId, authentication);
+                                               Pageable pageable) {
+        validateAndGetList(listId);
         String trimmedName = (name != null && !name.trim().isEmpty()) ? name.trim() : null;
         
         Page<Item> items = itemRepository.findByListIdWithFilters(listId, status, trimmedName, pageable);
@@ -47,17 +49,17 @@ public class ItemService {
     /**
      * Get a single item by ID
      */
-    public ItemResponse getItemById(Long listId, Long itemId, Authentication authentication) {
+    public ItemResponse getItemById(Long listId, Long itemId) {
         // Return ItemResponse DTO
-        Item item = validateAndGetItem(listId, itemId, authentication);
+        Item item = validateAndGetItem(listId, itemId);
         return itemMapper.toResponse(item);
     }
     
     /**
      * Create a new item
      */
-    public ItemResponse createItem(Long listId, Authentication authentication, ItemCreateRequest request) {
-        ItemList list = validateAndGetList(listId, authentication);
+    public ItemResponse createItem(Long listId, ItemCreateRequest request) {
+        ItemList list = validateAndGetList(listId);
         
         Item item = itemMapper.toEntity(request);
         item.setList(list);
@@ -69,8 +71,8 @@ public class ItemService {
     /**
      * Update an existing item
      */
-    public ItemResponse updateItem(Long listId, Long itemId, Authentication authentication, ItemUpdateRequest request) {
-        validateAndGetList(listId, authentication);
+    public ItemResponse updateItem(Long listId, Long itemId, ItemUpdateRequest request) {
+        validateAndGetList(listId);
         Item item = itemRepository.findByIdAndListId(itemId, listId)
                 .orElseThrow(() -> new ResourceNotFoundException("Item not found"));
         
@@ -97,8 +99,8 @@ public class ItemService {
     /**
      * Mark an item as complete
      */
-    public ItemResponse markAsComplete(Long listId, Long itemId, Authentication authentication) {
-        Item item = validateAndGetItem(listId, itemId, authentication);
+    public ItemResponse markAsComplete(Long listId, Long itemId) {
+        Item item = validateAndGetItem(listId, itemId);
         
         if (!item.canBeCompleted()) {
             throw new InvalidOperationException("Cannot complete: Dependencies not satisfied.");
@@ -112,8 +114,8 @@ public class ItemService {
     /**
      * Add a dependency to an item
      */
-    public void addDependency(Long listId, Long itemId, Long dependencyId, Authentication authentication) {
-        validateAndGetList(listId, authentication);
+    public void addDependency(Long listId, Long itemId, Long dependencyId) {
+        validateAndGetList(listId);
         
         Item item = itemRepository.findByIdAndListId(itemId, listId)
                 .orElseThrow(() -> new ResourceNotFoundException("Item not found."));
@@ -137,8 +139,8 @@ public class ItemService {
     /**
      * Remove a dependency from an item
      */
-    public void removeDependency(Long listId, Long itemId, Long dependencyId, Authentication authentication) {
-        validateAndGetList(listId, authentication);
+    public void removeDependency(Long listId, Long itemId, Long dependencyId) {
+        validateAndGetList(listId);
         
         Item item = itemRepository.findByIdAndListId(itemId, listId)
                 .orElseThrow(() -> new ResourceNotFoundException("Item not found."));
@@ -153,8 +155,8 @@ public class ItemService {
     /**
      * Delete an item
      */
-    public void deleteItem(Long listId, Long itemId, Authentication authentication) {
-        Item item = validateAndGetItem(listId, itemId, authentication);
+    public void deleteItem(Long listId, Long itemId) {
+        Item item = validateAndGetItem(listId, itemId);
         
         // Remove this item from all dependents' dependencies
         for (Item dependent : item.getDependents()) {
@@ -177,7 +179,7 @@ public class ItemService {
      */
     private boolean checkDependencyChain(Item item, Long targetId, Long depth) {
 
-        if (depth > Parameters.MAX_DEPENDENCY_DEPTH) {
+        if (depth > appConfig.getMaxDependencyDepth()) {
             throw new InvalidOperationException("Dependency chain too deep or possible circular dependency.");
         }
 
@@ -195,18 +197,10 @@ public class ItemService {
     }
     
     /**
-     * Extract user ID from authentication
-     */
-    private Long getUserIdFromAuthentication(Authentication authentication) {
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        return userDetails.getId();
-    }
-    
-    /**
      * Validate user owns the list and return it
      */
-    private com.kerem.todoApp.model.ItemList validateAndGetList(Long listId, Authentication authentication) {
-        Long userId = getUserIdFromAuthentication(authentication);
+    private com.kerem.todoApp.model.ItemList validateAndGetList(Long listId) {
+        Long userId = SecurityUtils.getCurrentUserId();
         return itemListRepository.findByIdAndUserId(listId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Todo list not found"));
     }
@@ -214,8 +208,8 @@ public class ItemService {
     /**
      * Validate user owns the list and return the item
      */
-    private Item validateAndGetItem(Long listId, Long itemId, Authentication authentication) {
-        validateAndGetList(listId, authentication);
+    private Item validateAndGetItem(Long listId, Long itemId) {
+        validateAndGetList(listId);
         return itemRepository.findByIdAndListId(itemId, listId)
                 .orElseThrow(() -> new ResourceNotFoundException("Item not found"));
     }

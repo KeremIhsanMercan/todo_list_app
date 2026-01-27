@@ -25,8 +25,8 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     java.util.List<Item> findByListIdAndNameContaining(@Param("listId") Long listId, @Param("name") String name);
     
     @Query("SELECT t FROM Item t WHERE t.list.id = :listId " +
-           "AND (:status IS NULL OR t.status = :status) " +
-           "AND (:name IS NULL OR LOWER(t.name) LIKE LOWER(CONCAT('%', :name, '%')))")
+       "AND (:status IS NULL OR t.status = :status) " +
+       "AND (:name IS NULL OR LOWER(t.name) LIKE LOWER(CONCAT('%', :name, '%')))")
     Page<Item> findByListIdWithFilters(
         @Param("listId") Long listId,
         @Param("status") ItemStatus status,

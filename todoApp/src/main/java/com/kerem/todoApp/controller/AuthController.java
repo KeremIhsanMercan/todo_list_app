@@ -2,7 +2,6 @@ package com.kerem.todoApp.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -47,10 +46,8 @@ public class AuthController {
     }
     
     @PutMapping("/update")
-    public ResponseEntity<JwtResponse> updateUser(@Valid @RequestBody UpdateUserRequest updateRequest, 
-                                        Authentication authentication) {
+    public ResponseEntity<JwtResponse> updateUser(@Valid @RequestBody UpdateUserRequest updateRequest) {
         JwtResponse response = authService.updateUser(
-                authentication,
                 updateRequest.getUsername(),
                 updateRequest.getEmail(),
                 updateRequest.getPassword());
@@ -58,9 +55,8 @@ public class AuthController {
     }
     
     @DeleteMapping("/delete")
-    public ResponseEntity<MessageResponse> deleteAccount(@Valid @RequestBody DeleteAccountRequest deleteRequest,
-                                          Authentication authentication) {
-        authService.deleteAccount(authentication, deleteRequest.getPassword());
+    public ResponseEntity<MessageResponse> deleteAccount(@Valid @RequestBody DeleteAccountRequest deleteRequest) {
+        authService.deleteAccount(deleteRequest.getPassword());
         return ResponseEntity.ok(new MessageResponse("Account deleted successfully!"));
     }
 }

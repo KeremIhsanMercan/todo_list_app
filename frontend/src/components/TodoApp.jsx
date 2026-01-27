@@ -16,6 +16,14 @@ function TodoApp() {
   const [todoItems, setTodoItems] = useState([]);
   const [loading, setLoading] = useState(false);
   
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    currentPage: 0,
+    totalPages: 0,
+    totalElements: 0,
+    pageSize: 20
+  });
+  
   // List form state
   const [showListForm, setShowListForm] = useState(false);
   const [listName, setListName] = useState('');
@@ -168,7 +176,7 @@ function TodoApp() {
     if (selectedList) {
       fetchTodoItems();
     }
-  }, [selectedList, filters, sorting]);
+  }, [selectedList, filters, sorting, pagination.currentPage]);
 
   useEffect(() => {
     if (!showItemForm) {
@@ -370,7 +378,9 @@ function TodoApp() {
     try {
       const params = {
         ...filters,
-        ...sorting
+        ...sorting,
+        page: pagination.currentPage,
+        size: pagination.pageSize
       };
       // Remove empty filters
       Object.keys(params).forEach(key => {
@@ -380,8 +390,16 @@ function TodoApp() {
       });
       
       const response = await todoItemAPI.getAll(selectedList.id, params);
-      // Extract content array from paginated response
-      setTodoItems(response.data.content || response.data); // Backend returns Page object with content array
+      const pageData = response.data;
+      
+      // Update items and pagination info
+      setTodoItems(pageData.content || pageData);
+      setPagination({
+        currentPage: pageData.number || 0,
+        totalPages: pageData.totalPages || 0,
+        totalElements: pageData.totalElements || 0,
+        pageSize: pageData.size || 20
+      });
     } catch (error) {
       Swal.fire({
         icon: 'error',
@@ -658,6 +676,21 @@ function TodoApp() {
     return deadlineDate.getTime() === today.getTime();
   };
 
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({ ...prev, currentPage: newPage }));
+  };
+
+  const handleListSelect = (list) => {
+    setSelectedList(list);
+    // Reset to first page when selecting a new list
+    setPagination(prev => ({ ...prev, currentPage: 0 }));
+  };
+
+  // Reset to first page when filters or sorting change
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, currentPage: 0 }));
+  }, [filters.status, filters.name, sorting.sortBy, sorting.sortOrder]);
+
   return (
     <div className="todo-app">
       <header className="app-header">
@@ -683,7 +716,7 @@ function TodoApp() {
               <div
                 key={list.id}
                 className={`list-item ${selectedList?.id === list.id ? 'active' : ''}`}
-                onClick={() => setSelectedList(list)}
+                onClick={() => handleListSelect(list)}
               >
                 <span className="list-name">{list.name}</span>
                 <div className="list-actions">
@@ -799,6 +832,32 @@ function TodoApp() {
                   ))
                 )}
               </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="pagination">
+                  <button 
+                    onClick={() => handlePageChange(pagination.currentPage - 1)} 
+                    disabled={pagination.currentPage === 0}
+                    className="btn-page"
+                  >
+                    Previous
+                  </button>
+                  
+                  <div className="page-info">
+                    <span>Page {pagination.currentPage + 1} of {pagination.totalPages}</span>
+                    <span className="total-items">({pagination.totalElements} items total)</span>
+                  </div>
+                  
+                  <button 
+                    onClick={() => handlePageChange(pagination.currentPage + 1)} 
+                    disabled={pagination.currentPage >= pagination.totalPages - 1}
+                    className="btn-page"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <div className="empty-state-main">
@@ -806,6 +865,7 @@ function TodoApp() {
             </div>
           )}
         </div>
+
       </div>
 
     </div>

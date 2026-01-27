@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -16,7 +17,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -24,8 +27,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
 
+import com.kerem.todoApp.config.AppConfig;
 import com.kerem.todoApp.dto.ItemCreateRequest;
 import com.kerem.todoApp.dto.ItemResponse;
 import com.kerem.todoApp.dto.ItemUpdateRequest;
@@ -37,7 +40,7 @@ import com.kerem.todoApp.model.ItemStatus;
 import com.kerem.todoApp.model.User;
 import com.kerem.todoApp.repository.ItemListRepository;
 import com.kerem.todoApp.repository.ItemRepository;
-import com.kerem.todoApp.security.UserDetailsImpl;
+import com.kerem.todoApp.security.SecurityUtils;
 
 @ExtendWith(MockitoExtension.class)
 public class ItemServiceTests {
@@ -52,17 +55,17 @@ public class ItemServiceTests {
     private ItemMapper itemMapper;
     
     @Mock
-    private Authentication authentication;
+    private AppConfig appConfig;
     
     @InjectMocks
     private ItemService itemService;
     
+    private MockedStatic<SecurityUtils> securityUtilsMock;
     private User testUser;
     private com.kerem.todoApp.model.ItemList testList;
     private Item testItem1;
     private Item testItem2;
     private Item testItem3;
-    private UserDetailsImpl userDetails;
     
     @SuppressWarnings("unused")
     @BeforeEach
@@ -90,9 +93,12 @@ public class ItemServiceTests {
         testItem3.setStatus(ItemStatus.COMPLETED);
         testItem3.setDependencies(new HashSet<>());
         
-        // Setup mock Authentication (lenient to avoid UnnecessaryStubbingException)
-        userDetails = new UserDetailsImpl(1L, "testuser", "test@example.com", "password123");
-        lenient().when(authentication.getPrincipal()).thenReturn(userDetails);
+        // Mock SecurityUtils to return user ID
+        securityUtilsMock = mockStatic(SecurityUtils.class);
+        securityUtilsMock.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+        
+        // Mock AppConfig to return maxDependencyDepth
+        lenient().when(appConfig.getMaxDependencyDepth()).thenReturn(5L);
         
         // Setup mock ItemMapper (lenient to avoid UnnecessaryStubbingException)
         lenient().when(itemMapper.toResponse(any(Item.class))).thenAnswer(invocation -> {
@@ -144,6 +150,14 @@ public class ItemServiceTests {
         }).when(itemMapper).updateEntity(any(ItemUpdateRequest.class), any(Item.class));
     }
     
+    @SuppressWarnings("unused")
+    @AfterEach
+    void tearDown() {
+        if (securityUtilsMock != null) {
+            securityUtilsMock.close();
+        }
+    }
+    
     @Test
     void testGetItemsForList_NoFilters() {
         // Arrange
@@ -155,7 +169,7 @@ public class ItemServiceTests {
         when(itemRepository.findByListIdWithFilters(any(Long.class), any(), any(), any(Pageable.class))).thenReturn(page);
         
         // Act
-        Page<ItemResponse> result = itemService.getItemsForList(1L, null, null, pageable, authentication);
+        Page<ItemResponse> result = itemService.getItemsForList(1L, null, null, pageable);
         
         // Assert
         assertNotNull(result);
@@ -174,7 +188,7 @@ public class ItemServiceTests {
         when(itemRepository.findByListIdWithFilters(1L, ItemStatus.COMPLETED, null, pageable)).thenReturn(page);
         
         // Act
-        Page<ItemResponse> result = itemService.getItemsForList(1L, ItemStatus.COMPLETED, null, pageable, authentication);
+        Page<ItemResponse> result = itemService.getItemsForList(1L, ItemStatus.COMPLETED, null, pageable);
         
         // Assert
         assertNotNull(result);
@@ -193,7 +207,7 @@ public class ItemServiceTests {
         when(itemRepository.findByListIdWithFilters(1L, null, "Item 1", pageable)).thenReturn(page);
         
         // Act
-        Page<ItemResponse> result = itemService.getItemsForList(1L, null, "Item 1", pageable, authentication);
+        Page<ItemResponse> result = itemService.getItemsForList(1L, null, "Item 1", pageable);
         
         // Assert
         assertNotNull(result);
@@ -212,7 +226,7 @@ public class ItemServiceTests {
         when(itemRepository.findByListIdWithFilters(any(Long.class), any(), any(), any(Pageable.class))).thenReturn(page);
         
         // Act
-        Page<ItemResponse> result = itemService.getItemsForList(1L, null, null, pageable, authentication);
+        Page<ItemResponse> result = itemService.getItemsForList(1L, null, null, pageable);
         
         // Assert
         assertNotNull(result);
@@ -229,7 +243,7 @@ public class ItemServiceTests {
         when(itemRepository.findByIdAndListId(1L, 1L)).thenReturn(Optional.of(testItem1));
         
         // Act
-        ItemResponse result = itemService.getItemById(1L, 1L, authentication);
+        ItemResponse result = itemService.getItemById(1L, 1L);
         
         // Assert
         assertNotNull(result);
@@ -245,7 +259,7 @@ public class ItemServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> {
-            itemService.getItemById(1L, 1L, authentication);
+            itemService.getItemById(1L, 1L);
         });
         
         assertEquals("Todo list not found", exception.getMessage());
@@ -259,7 +273,7 @@ public class ItemServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> {
-            itemService.getItemById(1L, 1L, authentication);
+            itemService.getItemById(1L, 1L);
         });
         
         assertEquals("Item not found", exception.getMessage());
@@ -278,7 +292,7 @@ public class ItemServiceTests {
         when(itemRepository.save(any(Item.class))).thenReturn(newItem);
         
         // Act
-        ItemResponse result = itemService.createItem(1L, authentication, createRequest);
+        ItemResponse result = itemService.createItem(1L, createRequest);
         
         // Assert
         assertNotNull(result);
@@ -298,7 +312,7 @@ public class ItemServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> {
-            itemService.createItem(1L, authentication, createRequest);
+            itemService.createItem(1L, createRequest);
         });
         
         assertEquals("Todo list not found", exception.getMessage());
@@ -318,7 +332,7 @@ public class ItemServiceTests {
         when(itemRepository.save(any(Item.class))).thenReturn(testItem1);
         
         // Act
-        ItemResponse result = itemService.updateItem(1L, 1L, authentication, updateRequest);
+        ItemResponse result = itemService.updateItem(1L, 1L, updateRequest);
         
         // Assert
         assertNotNull(result);
@@ -341,7 +355,7 @@ public class ItemServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(InvalidOperationException.class, () -> {
-            itemService.updateItem(1L, 1L, authentication, updateRequest);
+            itemService.updateItem(1L, 1L, updateRequest);
         });
         
         assertEquals("Cannot mark as COMPLETED! Dependencies are not complete.", exception.getMessage());
@@ -366,7 +380,7 @@ public class ItemServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(InvalidOperationException.class, () -> {
-            itemService.updateItem(1L, 1L, authentication, updateRequest);
+            itemService.updateItem(1L, 1L, updateRequest);
         });
         
         assertEquals("Cannot change status! There are items depending on this that are COMPLETED.", exception.getMessage());
@@ -380,7 +394,7 @@ public class ItemServiceTests {
         when(itemRepository.save(any(Item.class))).thenReturn(testItem1);
         
         // Act
-        ItemResponse result = itemService.markAsComplete(1L, 1L, authentication);
+        ItemResponse result = itemService.markAsComplete(1L, 1L);
         
         // Assert
         assertNotNull(result);
@@ -397,7 +411,7 @@ public class ItemServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(InvalidOperationException.class, () -> {
-            itemService.markAsComplete(1L, 1L, authentication);
+            itemService.markAsComplete(1L, 1L);
         });
         
         assertEquals("Cannot complete: Dependencies not satisfied.", exception.getMessage());
@@ -412,7 +426,7 @@ public class ItemServiceTests {
         when(itemRepository.save(any(Item.class))).thenReturn(testItem1);
         
         // Act
-        itemService.addDependency(1L, 1L, 2L, authentication);
+        itemService.addDependency(1L, 1L, 2L);
         
         // Assert
         verify(itemRepository).save(testItem1);
@@ -426,7 +440,7 @@ public class ItemServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(InvalidOperationException.class, () -> {
-            itemService.addDependency(1L, 1L, 1L, authentication);
+            itemService.addDependency(1L, 1L, 1L);
         });
         
         assertEquals("Item cannot depend on itself.", exception.getMessage());
@@ -443,7 +457,7 @@ public class ItemServiceTests {
         
         // Act & Assert (trying to make testItem1 depend on testItem2 would create a circle)
         Exception exception = assertThrows(InvalidOperationException.class, () -> {
-            itemService.addDependency(1L, 1L, 2L, authentication);
+            itemService.addDependency(1L, 1L, 2L);
         });
         
         assertEquals("This would create a circular dependency.", exception.getMessage());
@@ -460,7 +474,7 @@ public class ItemServiceTests {
         when(itemRepository.save(any(Item.class))).thenReturn(testItem1);
         
         // Act
-        itemService.removeDependency(1L, 1L, 2L, authentication);
+        itemService.removeDependency(1L, 1L, 2L);
         
         // Assert
         verify(itemRepository).save(testItem1);
@@ -473,7 +487,7 @@ public class ItemServiceTests {
         when(itemRepository.findByIdAndListId(1L, 1L)).thenReturn(Optional.of(testItem1));
         
         // Act
-        itemService.deleteItem(1L, 1L, authentication);
+        itemService.deleteItem(1L, 1L);
         
         // Assert
         verify(itemRepository).delete(testItem1);

@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,17 +14,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import static org.mockito.Mockito.lenient;
+import org.mockito.MockedStatic;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.core.Authentication;
 
 import com.kerem.todoApp.exception.ResourceNotFoundException;
 import com.kerem.todoApp.model.User;
 import com.kerem.todoApp.repository.ItemListRepository;
 import com.kerem.todoApp.repository.UserRepository;
-import com.kerem.todoApp.security.UserDetailsImpl;
+import com.kerem.todoApp.security.SecurityUtils;
 
 @ExtendWith(MockitoExtension.class)
 public class ItemListServiceTests {
@@ -34,16 +35,13 @@ public class ItemListServiceTests {
     @Mock
     private UserRepository userRepository;
     
-    @Mock
-    private Authentication authentication;
-    
     @InjectMocks
     private ItemListService itemListService;
     
+    private MockedStatic<SecurityUtils> securityUtilsMock;
     private User testUser;
     private com.kerem.todoApp.model.ItemList testList1;
     private com.kerem.todoApp.model.ItemList testList2;
-    private UserDetailsImpl userDetails;
     
     @SuppressWarnings("unused")
     @BeforeEach
@@ -57,9 +55,17 @@ public class ItemListServiceTests {
         testList2 = new com.kerem.todoApp.model.ItemList("List 2", testUser);
         testList2.setId(2L);
         
-        // Setup mock Authentication (lenient to avoid UnnecessaryStubbingException)
-        userDetails = new UserDetailsImpl(1L, "testuser", "test@example.com", "password123");
-        lenient().when(authentication.getPrincipal()).thenReturn(userDetails);
+        // Mock SecurityUtils to return user ID
+        securityUtilsMock = mockStatic(SecurityUtils.class);
+        securityUtilsMock.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+    }
+    
+    @SuppressWarnings("unused")
+    @AfterEach
+    void tearDown() {
+        if (securityUtilsMock != null) {
+            securityUtilsMock.close();
+        }
     }
     
     @Test
@@ -69,7 +75,7 @@ public class ItemListServiceTests {
         when(itemListRepository.findByUserId(1L)).thenReturn(lists);
         
         // Act
-        List<com.kerem.todoApp.model.ItemList> result = itemListService.getUserLists(authentication);
+        List<com.kerem.todoApp.model.ItemList> result = itemListService.getUserLists();
         
         // Assert
         assertNotNull(result);
@@ -85,7 +91,7 @@ public class ItemListServiceTests {
         when(itemListRepository.findByUserId(1L)).thenReturn(Arrays.asList());
         
         // Act
-        List<com.kerem.todoApp.model.ItemList> result = itemListService.getUserLists(authentication);
+        List<com.kerem.todoApp.model.ItemList> result = itemListService.getUserLists();
         
         // Assert
         assertNotNull(result);
@@ -98,7 +104,7 @@ public class ItemListServiceTests {
         when(itemListRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(testList1));
         
         // Act
-        com.kerem.todoApp.model.ItemList result = itemListService.getListById(1L, authentication);
+        com.kerem.todoApp.model.ItemList result = itemListService.getListById(1L);
         
         // Assert
         assertNotNull(result);
@@ -114,7 +120,7 @@ public class ItemListServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> {
-            itemListService.getListById(1L, authentication);
+            itemListService.getListById(1L);
         });
         
         assertEquals("List not found", exception.getMessage());
@@ -128,7 +134,7 @@ public class ItemListServiceTests {
         when(itemListRepository.save(any(com.kerem.todoApp.model.ItemList.class))).thenReturn(testList1);
         
         // Act
-        com.kerem.todoApp.model.ItemList result = itemListService.createList(listName, authentication);
+        com.kerem.todoApp.model.ItemList result = itemListService.createList(listName);
         
         // Assert
         assertNotNull(result);
@@ -143,7 +149,7 @@ public class ItemListServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> {
-            itemListService.createList("New List", authentication);
+            itemListService.createList("New List");
         });
         
         assertEquals("User not found", exception.getMessage());
@@ -157,7 +163,7 @@ public class ItemListServiceTests {
         when(itemListRepository.save(any(com.kerem.todoApp.model.ItemList.class))).thenReturn(testList1);
         
         // Act
-        com.kerem.todoApp.model.ItemList result = itemListService.updateList(1L, newName, authentication);
+        com.kerem.todoApp.model.ItemList result = itemListService.updateList(1L, newName);
         
         // Assert
         assertNotNull(result);
@@ -172,7 +178,7 @@ public class ItemListServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> {
-            itemListService.updateList(1L, "Updated List", authentication);
+            itemListService.updateList(1L, "Updated List");
         });
         
         assertEquals("List not found", exception.getMessage());
@@ -184,7 +190,7 @@ public class ItemListServiceTests {
         when(itemListRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(testList1));
         
         // Act
-        itemListService.deleteList(1L, authentication);
+        itemListService.deleteList(1L);
         
         // Assert
         verify(itemListRepository).findByIdAndUserId(1L, 1L);
@@ -198,7 +204,7 @@ public class ItemListServiceTests {
         
         // Act & Assert
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> {
-            itemListService.deleteList(1L, authentication);
+            itemListService.deleteList(1L);
         });
         
         assertEquals("List not found", exception.getMessage());

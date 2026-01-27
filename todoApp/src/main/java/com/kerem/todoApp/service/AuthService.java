@@ -14,6 +14,7 @@ import com.kerem.todoApp.exception.ResourceNotFoundException;
 import com.kerem.todoApp.model.User;
 import com.kerem.todoApp.repository.UserRepository;
 import com.kerem.todoApp.security.JwtUtils;
+import com.kerem.todoApp.security.SecurityUtils;
 import com.kerem.todoApp.security.UserDetailsImpl;
 
 @Service
@@ -69,8 +70,8 @@ public class AuthService {
     /**
      * Update user information
      */
-    public JwtResponse updateUser(Authentication authentication, String newUsername, String newEmail, String password) {
-        Long userId = getUserIdFromAuthentication(authentication);
+    public JwtResponse updateUser(String newUsername, String newEmail, String password) {
+        Long userId = SecurityUtils.getCurrentUserId();
         // Find the user
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -113,8 +114,8 @@ public class AuthService {
     /**
      * Delete user account
      */
-    public void deleteAccount(Authentication authentication, String password) {
-        Long userId = getUserIdFromAuthentication(authentication);
+    public void deleteAccount(String password) {
+        Long userId = SecurityUtils.getCurrentUserId();
         // Find the user
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -126,14 +127,6 @@ public class AuthService {
         
         // Delete the user (cascade will delete all related data)
         userRepository.delete(user);
-    }
-    
-    /**
-     * Extract user ID from authentication
-     */
-    private Long getUserIdFromAuthentication(Authentication authentication) {
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        return userDetails.getId();
     }
 }
 
