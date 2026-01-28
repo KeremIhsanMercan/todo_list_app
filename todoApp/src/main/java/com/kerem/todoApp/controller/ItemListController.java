@@ -13,8 +13,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.kerem.todoApp.dto.ItemListCreateRequest;
+import com.kerem.todoApp.dto.ItemListResponse;
+import com.kerem.todoApp.dto.ItemListUpdateRequest;
 import com.kerem.todoApp.dto.MessageResponse;
-import com.kerem.todoApp.model.ItemList;
 import com.kerem.todoApp.service.ItemListService;
 
 import jakarta.validation.Valid;
@@ -29,30 +31,30 @@ public class ItemListController {
     
     // Get all lists for current user
     @GetMapping
-    public ResponseEntity<java.util.List<ItemList>> getUserLists() {
-        java.util.List<ItemList> lists = itemListService.getUserLists();
+    public ResponseEntity<java.util.List<ItemListResponse>> getUserLists() {
+        java.util.List<ItemListResponse> lists = itemListService.getUserLists();
         return ResponseEntity.ok(lists);
     }
     
     // Get list by id
     @GetMapping("/{id}")
-    public ResponseEntity<ItemList> getListById(@PathVariable Long id) {
-        ItemList list = itemListService.getListById(id);
+    public ResponseEntity<ItemListResponse> getListById(@PathVariable Long id) {
+        ItemListResponse list = itemListService.getListById(id);
         return ResponseEntity.ok(list);
     }
     
     // Create new list
     @PostMapping
-    public ResponseEntity<ItemList> createList(@Valid @RequestBody ItemList listRequest) {
-        ItemList savedList = itemListService.createList(listRequest.getName());
+    public ResponseEntity<ItemListResponse> createList(@Valid @RequestBody ItemListCreateRequest request) {
+        ItemListResponse savedList = itemListService.createList(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedList);
     }
     
     // Update list
     @PutMapping("/{id}")
-    public ResponseEntity<ItemList> updateList(@PathVariable Long id, 
-                                           @Valid @RequestBody ItemList listDetails) {
-        ItemList updatedList = itemListService.updateList(id, listDetails.getName());
+    public ResponseEntity<ItemListResponse> updateList(@PathVariable Long id, 
+                                           @Valid @RequestBody ItemListUpdateRequest request) {
+        ItemListResponse updatedList = itemListService.updateList(id, request);
         return ResponseEntity.ok(updatedList);
     }
     

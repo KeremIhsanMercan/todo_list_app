@@ -20,7 +20,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.kerem.todoApp.dto.ItemListCreateRequest;
+import com.kerem.todoApp.dto.ItemListResponse;
+import com.kerem.todoApp.dto.ItemListUpdateRequest;
 import com.kerem.todoApp.exception.ResourceNotFoundException;
+import com.kerem.todoApp.mapper.ItemListMapper;
 import com.kerem.todoApp.model.User;
 import com.kerem.todoApp.repository.ItemListRepository;
 import com.kerem.todoApp.repository.UserRepository;
@@ -34,6 +38,9 @@ public class ItemListServiceTests {
     
     @Mock
     private UserRepository userRepository;
+    
+    @Mock
+    private ItemListMapper itemListMapper;
     
     @InjectMocks
     private ItemListService itemListService;
@@ -72,10 +79,19 @@ public class ItemListServiceTests {
     void testGetUserLists_Success() {
         // Arrange
         List<com.kerem.todoApp.model.ItemList> lists = Arrays.asList(testList1, testList2);
+        ItemListResponse response1 = new ItemListResponse();
+        response1.setId(1L);
+        response1.setName("List 1");
+        ItemListResponse response2 = new ItemListResponse();
+        response2.setId(2L);
+        response2.setName("List 2");
+        
         when(itemListRepository.findByUserId(1L)).thenReturn(lists);
+        when(itemListMapper.toResponse(testList1)).thenReturn(response1);
+        when(itemListMapper.toResponse(testList2)).thenReturn(response2);
         
         // Act
-        List<com.kerem.todoApp.model.ItemList> result = itemListService.getUserLists();
+        List<ItemListResponse> result = itemListService.getUserLists();
         
         // Assert
         assertNotNull(result);
@@ -91,7 +107,7 @@ public class ItemListServiceTests {
         when(itemListRepository.findByUserId(1L)).thenReturn(Arrays.asList());
         
         // Act
-        List<com.kerem.todoApp.model.ItemList> result = itemListService.getUserLists();
+        List<ItemListResponse> result = itemListService.getUserLists();
         
         // Assert
         assertNotNull(result);
@@ -101,10 +117,15 @@ public class ItemListServiceTests {
     @Test
     void testGetListById_Success() {
         // Arrange
+        ItemListResponse response = new ItemListResponse();
+        response.setId(1L);
+        response.setName("List 1");
+        
         when(itemListRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(testList1));
+        when(itemListMapper.toResponse(testList1)).thenReturn(response);
         
         // Act
-        com.kerem.todoApp.model.ItemList result = itemListService.getListById(1L);
+        ItemListResponse result = itemListService.getListById(1L);
         
         // Assert
         assertNotNull(result);
@@ -129,12 +150,18 @@ public class ItemListServiceTests {
     @Test
     void testCreateList_Success() {
         // Arrange
-        String listName = "New List";
+        ItemListCreateRequest request = new ItemListCreateRequest();
+        request.setName("New List");
+        ItemListResponse response = new ItemListResponse();
+        response.setId(1L);
+        response.setName("New List");
+        
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(itemListRepository.save(any(com.kerem.todoApp.model.ItemList.class))).thenReturn(testList1);
+        when(itemListMapper.toResponse(testList1)).thenReturn(response);
         
         // Act
-        com.kerem.todoApp.model.ItemList result = itemListService.createList(listName);
+        ItemListResponse result = itemListService.createList(request);
         
         // Assert
         assertNotNull(result);
@@ -145,11 +172,13 @@ public class ItemListServiceTests {
     @Test
     void testCreateList_UserNotFound() {
         // Arrange
+        ItemListCreateRequest request = new ItemListCreateRequest();
+        request.setName("New List");
         when(userRepository.findById(1L)).thenReturn(Optional.empty());
         
         // Act & Assert
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> {
-            itemListService.createList("New List");
+            itemListService.createList(request);
         });
         
         assertEquals("User not found", exception.getMessage());
@@ -158,12 +187,18 @@ public class ItemListServiceTests {
     @Test
     void testUpdateList_Success() {
         // Arrange
-        String newName = "Updated List";
+        ItemListUpdateRequest request = new ItemListUpdateRequest();
+        request.setName("Updated List");
+        ItemListResponse response = new ItemListResponse();
+        response.setId(1L);
+        response.setName("Updated List");
+        
         when(itemListRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(testList1));
         when(itemListRepository.save(any(com.kerem.todoApp.model.ItemList.class))).thenReturn(testList1);
+        when(itemListMapper.toResponse(testList1)).thenReturn(response);
         
         // Act
-        com.kerem.todoApp.model.ItemList result = itemListService.updateList(1L, newName);
+        ItemListResponse result = itemListService.updateList(1L, request);
         
         // Assert
         assertNotNull(result);
@@ -174,11 +209,13 @@ public class ItemListServiceTests {
     @Test
     void testUpdateList_NotFound() {
         // Arrange
+        ItemListUpdateRequest request = new ItemListUpdateRequest();
+        request.setName("Updated List");
         when(itemListRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.empty());
         
         // Act & Assert
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> {
-            itemListService.updateList(1L, "Updated List");
+            itemListService.updateList(1L, request);
         });
         
         assertEquals("List not found", exception.getMessage());

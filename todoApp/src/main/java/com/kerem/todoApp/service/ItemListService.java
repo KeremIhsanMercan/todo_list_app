@@ -1,11 +1,16 @@
 package com.kerem.todoApp.service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.kerem.todoApp.dto.ItemListCreateRequest;
+import com.kerem.todoApp.dto.ItemListResponse;
+import com.kerem.todoApp.dto.ItemListUpdateRequest;
 import com.kerem.todoApp.exception.ResourceNotFoundException;
+import com.kerem.todoApp.mapper.ItemListMapper;
 import com.kerem.todoApp.model.User;
 import com.kerem.todoApp.repository.ItemListRepository;
 import com.kerem.todoApp.repository.UserRepository;
@@ -20,45 +25,53 @@ public class ItemListService {
     @Autowired
     private UserRepository userRepository;
     
+    @Autowired
+    private ItemListMapper itemListMapper;
+    
     /**
      * Get all lists for a user
      */
-    public List<com.kerem.todoApp.model.ItemList> getUserLists() {
+    public List<ItemListResponse> getUserLists() {
         Long userId = SecurityUtils.getCurrentUserId();
-        return itemListRepository.findByUserId(userId);
+        return itemListRepository.findByUserId(userId).stream()
+                .map(itemListMapper::toResponse)
+                .collect(Collectors.toList());
     }
     
     /**
      * Get a single list by ID
      */
-    public com.kerem.todoApp.model.ItemList getListById(Long listId) {
+    public ItemListResponse getListById(Long listId) {
         Long userId = SecurityUtils.getCurrentUserId();
-        return itemListRepository.findByIdAndUserId(listId, userId)
+        com.kerem.todoApp.model.ItemList list = itemListRepository.findByIdAndUserId(listId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("List not found"));
+        return itemListMapper.toResponse(list);
     }
     
     /**
      * Create a new list
      */
-    public com.kerem.todoApp.model.ItemList createList(String listName) {
+    public ItemListResponse createList(ItemListCreateRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         
-        com.kerem.todoApp.model.ItemList list = new com.kerem.todoApp.model.ItemList(listName, user);
-        return itemListRepository.save(list);
+        com.kerem.todoApp.model.ItemList list = new com.kerem.todoApp.model.ItemList(request.getName(), user);
+        com.kerem.todoApp.model.ItemList savedList = itemListRepository.save(list);
+        return itemListMapper.toResponse(savedList);
     }
     
     /**
      * Update a list
      */
-    public com.kerem.todoApp.model.ItemList updateList(Long listId, String newName) {
+    public ItemListResponse updateList(Long listId, ItemListUpdateRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
         com.kerem.todoApp.model.ItemList list = itemListRepository.findByIdAndUserId(listId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("List not found"));
         
-        list.setName(newName);
-        return itemListRepository.save(list);
+        list.setName(request.getName());
+        com.kerem.todoApp.model.ItemList updatedList = itemListRepository.save(list);
+        return itemListMapper.toResponse(updatedList);
     }
     
     /**
